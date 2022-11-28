@@ -8,7 +8,7 @@ using namespace SPMV;
 static void BM_SpmvBenchUnbalanced(benchmark::State &state) {
   auto A = GenSparseMatrix<double, SparseKind::UNBALANCED>(
       state.range(0), state.range(1),
-      1e-4); // TODO: density?
+      1e-3);
   auto x = GenVector<double>(state.range(1));
   // allocate result only once
   std::vector<double> y(A.Dimensions.Rows);

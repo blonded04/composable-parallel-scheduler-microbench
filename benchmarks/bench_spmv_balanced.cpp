@@ -2,14 +2,16 @@
 
 #include "parallel_for.h"
 #include "spmv.h"
+#include <iostream>
 
 using namespace SPMV;
 
 static void BM_SpmvBenchBalanced(benchmark::State &state) {
   auto A = GenSparseMatrix<double, SparseKind::BALANCED>(
       state.range(0), state.range(1),
-      1e-4); // TODO: density?
+      1e-3);
   auto x = GenVector<double>(state.range(1));
+  std::cerr << "A: " << A.Dimensions.Rows << "x" << A.Dimensions.Columns << std::endl;
   // allocate result only once
   std::vector<double> y(A.Dimensions.Rows);
   for (auto _ : state) {

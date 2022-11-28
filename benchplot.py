@@ -21,11 +21,11 @@ def plot_benchmark(benchmarks, title):
     benchmarks = sorted(benchmarks.items(), key=lambda x: x[0])
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
     min_time = sorted(benchmarks, key=lambda x: x[1])[0][1]
-    ax1.set_title("Normalized perfomance of " + title)
+    ax1.set_xlabel("Normalized perfomance of " + title)
     print([(name, min_time / time) for name, time in benchmarks])
     ax1 = ax1.barh(*zip(*[(name, min_time / time) for name, time in benchmarks]))
 
-    ax2.set_title("Time of " + title + ", us")
+    ax2.set_xlabel("Time of " + title + ", us")
     ax2 = ax2.barh(*zip(*benchmarks))
     return fig
 
@@ -62,9 +62,12 @@ def parse_benchmarks(folder_name):
 def plot_scheduling_benchmarks(scheduling_times):
     # x for thread_idx, y for time
     fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-    for bench_type, times in sorted(scheduling_times.items(), key=lambda x: max(x[1])):
+    for bench_type, times in reversed(sorted(scheduling_times.items(), key=lambda x: max(x[1]))):
         print(bench_type, times)
         ax.plot(range(len(times)), times, label=bench_type)
+    ax.set_title("Scheduling time")
+    ax.set_xlabel("Index of thread")
+    ax.set_ylabel("Time, us")
     ax.legend()
     return fig
 
@@ -89,7 +92,7 @@ if __name__ == "__main__":
         print(bench_type, res["thread_num"], res["used_threads"])
         if res["thread_num"] != res["used_threads"]:
             print(f"Maybe something went wrong with {bench_type}: not all threads were used")
-        scheduling_times[bench_type] = res["start_times"]
+        scheduling_times[bench_type] = [x/1e3 for x in res["start_times"]]
 
     fig = plot_scheduling_benchmarks(scheduling_times)
     fig.savefig(os.path.join(res_path, 'scheduling_time.png'))
