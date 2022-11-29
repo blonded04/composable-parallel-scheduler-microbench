@@ -5,8 +5,7 @@
 
 static constexpr size_t MIN_SIZE = 1 << 10;
 static constexpr size_t MAX_SIZE = 1 << 27;
-// TODO: custom block size?
-static constexpr size_t BLOCK_SIZE = 1 << 10;
+static constexpr size_t BLOCK_SIZE = 1 << 7;
 
 static void BM_ReduceBench(benchmark::State &state) {
   size_t size = state.range(0);
