@@ -18,4 +18,4 @@ cmake-build*
 cmake_install.cmake
 
 # benchmarks
-bench_results/
+bench_results/*.json
