@@ -41,9 +41,9 @@ bench_scan:
 bench_scheduling:
 	@for x in $(shell ls -1 scheduling_time/cmake-build-release/bench_scheduling_* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; scheduling_time/cmake-build-release/$$x > bench_results/$$x.json; done
 
-bench: clean_bench bench_dir release bench_spmv bench_reduce bench_scan bench_scheduling
+bench: clean_bench bench_dir release_benchmarks release_scheduling bench_spmv bench_reduce bench_scan bench_scheduling
 
 bench_tests:
 	@for x in $(shell ls -1 benchmarks/cmake-build-debug/tests/*tests* | xargs -n 1 basename | sort ) ; do numactl -N 0 benchmarks/cmake-build-release/tests/$$x; done
 
-tests: release bench_tests
+tests: debug_benchmarks bench_tests
