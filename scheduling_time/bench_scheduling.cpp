@@ -1,4 +1,4 @@
-#include "parallel_for.h"
+#include "../include/parallel_for.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>

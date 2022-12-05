@@ -1,7 +1,7 @@
 #include "spmv.h"
 #include <benchmark/benchmark.h>
 
-#include "parallel_for.h"
+#include "../include/parallel_for.h"
 
 static constexpr size_t MIN_SIZE = 1 << 10;
 static constexpr size_t MAX_SIZE = 1 << 27;
