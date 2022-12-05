@@ -8,7 +8,7 @@ release_scheduling:
 	cd scheduling_time && cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -C cmake-build-release -j$(shell nproc)
 
 debug_benchmarks:
-	cd benchmarks && cmake -B cmake-build-debug -S . -DCMAKE_BUILD_TYPE=Debug && make -C cmake-build-debug -j$(shell nproc)
+	cd benchmarks && cmake -B cmake-build-debug -S . -DENABLE_TESTS=ON -DCMAKE_BUILD_TYPE=Debug && make -C cmake-build-debug -j$(shell nproc)
 
 clean:
 	rm -rf cmake-build-* benchmarks/cmake-build-* scheduling_time/cmake-build-*
@@ -44,6 +44,6 @@ bench_scheduling:
 bench: clean_bench bench_dir release bench_spmv bench_reduce bench_scan bench_scheduling
 
 bench_tests:
-	@for x in $(shell ls -1 benchmarks/cmake-build-release/tests/*tests* | xargs -n 1 basename | sort ) ; do numactl -N 0 benchmarks/cmake-build-release/tests/$$x; done
+	@for x in $(shell ls -1 benchmarks/cmake-build-debug/tests/*tests* | xargs -n 1 basename | sort ) ; do numactl -N 0 benchmarks/cmake-build-release/tests/$$x; done
 
 tests: release bench_tests
