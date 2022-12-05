@@ -9,6 +9,8 @@ conda activate benchmarks
 
 ## Build & Run
 ```bash
+make clean
+make release
 make bench # runs benchmarks and saves results to ./bench_results
 ```
 
