@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
   }
   runOnce(threadNum); // just for warmup
 
-  size_t repeat = 20;
+  size_t repeat = 100;
   std::vector<std::vector<uint64_t>> results;
   for (size_t i = 0; i < repeat; i++) {
     auto times = runOnce(threadNum);
