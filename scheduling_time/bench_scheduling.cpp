@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-#define WAITING 1
+#define SLEEP 1
 #define BARRIER 2
 #define RUNNING 3
 
@@ -29,13 +29,12 @@ struct TimeReporter {
   // saves time of first report in current epoch
   // we need epochs to reset times in all threads after each benchmark
   // just incrementing epoch
-  void ReportTime(uint64_t before) {
-    auto duration = Now() - before;
+  void ReportTime(uint64_t result) {
     if (reportedEpoch < currentEpoch) {
       // lock is aquired only once per epoch
       // so it doesn't affect measurements
       std::lock_guard<std::mutex> lock(mutex);
-      times.push_back(duration);
+      times.push_back(result);
       reportedEpoch = currentEpoch;
     }
   }
@@ -67,13 +66,13 @@ static std::vector<uint64_t> runOnce(size_t threadNum) {
   std::vector<uint64_t> times(threadNum);
   std::mutex timesMutex;
   ParallelFor(0, threadNum, [&](size_t i) {
-    auto now = Now();
+    auto resultTime = Now() - start;
     auto id = reported.fetch_add(1);
     {
       // lock is aquired after time measurement
       // so we are not afraid of performance loss
       std::lock_guard<std::mutex> lock(timesMutex);
-      times[id] = now - start;
+      times[id] = resultTime;
     }
     // it's ok to block here because we want
     // to measure time of all threadNum threads
@@ -84,9 +83,9 @@ static std::vector<uint64_t> runOnce(size_t threadNum) {
   std::lock_guard<std::mutex> lock(timesMutex);
   return times;
 #endif
-#if SCHEDULING_MEASURE_MODE == WAITING
+#if SCHEDULING_MEASURE_MODE == SLEEP
   ParallelFor(0, threadNum, [&](size_t i) {
-    timeReporter.ReportTime(start);
+    timeReporter.ReportTime(Now() - start);
     // sleep for emulating work
     std::this_thread::sleep_for(std::chrono::seconds(1));
   });
@@ -97,7 +96,7 @@ static std::vector<uint64_t> runOnce(size_t threadNum) {
   auto totalBenchTime = std::chrono::duration<double>(1);
   auto sleepFor = totalBenchTime * threadNum / tasksNum;
   ParallelFor(0, tasksNum, [&](size_t i) {
-    timeReporter.ReportTime(start);
+    timeReporter.ReportTime(Now() - start);
     // sleep for emulating work
     std::this_thread::sleep_for(sleepFor);
   });
