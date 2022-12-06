@@ -62,18 +62,20 @@ static thread_local TimeReporter timeReporter;
 static std::vector<uint64_t> runOnce(size_t threadNum) {
   auto start = Now();
 #if SCHEDULING_MEASURE_MODE == BARRIER
+  std::atomic<size_t> acquired = 0;
   std::atomic<size_t> reported = 0;
   std::vector<uint64_t> times(threadNum);
   std::mutex timesMutex;
   ParallelFor(0, threadNum, [&](size_t i) {
     auto resultTime = Now() - start;
-    auto id = reported.fetch_add(1);
+    auto id = acquired.fetch_add(1);
     {
       // lock is aquired after time measurement
       // so we are not afraid of performance loss
       std::lock_guard<std::mutex> lock(timesMutex);
       times[id] = resultTime;
     }
+    reported.fetch_add(1);
     // it's ok to block here because we want
     // to measure time of all threadNum threads
     while (reported.load() != threadNum) {
