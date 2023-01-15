@@ -14,7 +14,9 @@ make release
 make bench # runs benchmarks and saves results to ./bench_results
 ```
 
-TODO: python dependencies
+## Plot results
 ```bash
+conda env create -f benchplot.yml
+conda activate benchplot
 python3 benchplot.py # plots benchmark results and saves images to ./bench_results/images
 ```
