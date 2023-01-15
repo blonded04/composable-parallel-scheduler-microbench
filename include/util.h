@@ -18,18 +18,23 @@
 #include <thread>
 
 inline int GetNumThreads() {
+  int threads = 1;
 #if defined(TBB_MODE)
-  return ::tbb::info::
+  threads = tbb::info::
       default_concurrency(); // tbb::this_task_arena::max_concurrency();
 #elif defined(OMP_MODE)
-  return omp_get_max_threads();
+  threads = omp_get_max_threads();
 #elif defined(SERIAL)
-  return 1;
+  threads = 1;
 #elif defined(EIGEN_MODE)
-  return GetEigenThreadsNum();
+  threads = GetEigenThreadsNum();
 #else
   static_assert(false, "Unsupported mode");
 #endif
+  if (const char *envThreads = std::getenv("BENCH_MAX_THREADS")) {
+    return std::min(threads, std::stoi(envThreads));
+  }
+  return threads;
 }
 
 inline int GetThreadIndex() {
