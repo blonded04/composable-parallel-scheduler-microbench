@@ -18,8 +18,8 @@ static void BM_SpmvBenchBalanced(benchmark::State &state) {
   }
 }
 
-static constexpr size_t MIN_SIZE = 1 << 13;
-static constexpr size_t MAX_SIZE = 1 << 17;
+static constexpr size_t MIN_SIZE = 1 << 10;
+static constexpr size_t MAX_SIZE = 1 << 15;
 
 BENCHMARK(BM_SpmvBenchBalanced)
     ->Name("SpmvBalanced_" + GetParallelMode())

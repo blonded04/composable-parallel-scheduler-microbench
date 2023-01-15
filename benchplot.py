@@ -95,13 +95,13 @@ def plot_scheduling_dist(scheduling_dist):
     fig = plt.figure(figsize=(12, 18))
     fig.suptitle("Scheduling distribution")
     fig.tight_layout()
-    gs = GridSpec(row_count, 3, figure=fig)
+    gs = GridSpec(row_count, 3, figure=fig, width_ratios=[1, 1, 4])
 
     for iter in range(row_count):
         ax = fig.add_subplot(gs[iter, 0])
         ax.set_ylabel("Thread")
         ax.set_xlabel("Task")
-        ax.get_figure().tight_layout()
+        # ax.get_figure().tight_layout()
 
         thread_count = len(scheduling_dist[iter])
         task_count = max(max(t["index"] for t in tasks) for tasks in scheduling_dist[iter].values()) + 1
@@ -119,7 +119,7 @@ def plot_scheduling_dist(scheduling_dist):
         ax = fig.add_subplot(gs[iter, 1])
         ax.set_ylabel("Thread")
         ax.set_xlabel("Cpu")
-        ax.get_figure().tight_layout()
+        # ax.get_figure().tight_layout()
 
         thread_count = len(scheduling_dist[iter])
         cpu_count = max(max(t["cpu"] for t in tasks) for tasks in scheduling_dist[iter].values()) + 1
@@ -134,7 +134,7 @@ def plot_scheduling_dist(scheduling_dist):
         ax = fig.add_subplot(gs[iter, 2])
         ax.set_ylabel("Clock ticks")
         ax.set_xlabel("Thread")
-        ax.get_figure().tight_layout()
+        # ax.get_figure().tight_layout()
 
         thread_count = len(scheduling_dist[iter])
         times = [min(task["time"] for task in tasks) for tasks in scheduling_dist[iter].values()]
@@ -156,8 +156,10 @@ if __name__ == "__main__":
     for bench_type, bench in benchmarks.items():
         if not bench_type.startswith("bench") or bench_type.startswith("bench_scheduling"):
             continue
+        print("Processing", bench_type)
         fig = plot_benchmark(bench, bench_type)
         fig.savefig(os.path.join(res_path, bench_type + '.png'), bbox_inches='tight')
+        plt.close()
 
     if "scheduling_dist" in benchmarks:
         # plot with and without barrier
@@ -170,8 +172,10 @@ if __name__ == "__main__":
             scheduling_times_by_suffix[measure_mode][bench_mode] = res["results"]
 
         for measure_mode, times in scheduling_times_by_suffix.items():
+            print("Processing scheduling time", measure_mode)
             fig = plot_scheduling_benchmarks(times)
             fig.savefig(os.path.join(res_path, "scheduling_time_" + measure_mode + '.png'), bbox_inches='tight')
+            plt.close()
 
         # plot average scheduling time for all benchs
         # avg_times = {}
@@ -179,9 +183,11 @@ if __name__ == "__main__":
         #     avg_times[bench_type.split("_", 2)[-1]] = sum(times) / len(times)
         # fig = plot_benchmark(avg_times, "average scheduling time")
         # fig.savefig(os.path.join(res_path, 'avg_scheduling_time.png'))
+        # plt.close()
 
         # plot scheduling dist
         for bench_mode, res in benchmarks["scheduling_dist"].items():
+            print("Processing scheduling dist", bench_mode)
             fig = plot_scheduling_dist(res["results"])
             for iter in res["results"]:
                 for thread_id, tasks in iter.items():
@@ -189,3 +195,4 @@ if __name__ == "__main__":
                     if len(unique_cpus) > 1:
                         print(f"{bench_mode}: {thread_id} has tasks on different cpus: {unique_cpus}")
             fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.png'), bbox_inches='tight')
+            plt.close()

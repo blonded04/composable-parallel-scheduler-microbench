@@ -4,8 +4,8 @@
 #include "../include/parallel_for.h"
 
 static constexpr size_t MIN_SIZE = 1 << 10;
-static constexpr size_t MAX_SIZE = 1 << 27;
-static constexpr size_t BLOCK_SIZE = 1 << 7;
+static constexpr size_t MAX_SIZE = 1 << 24;
+static constexpr size_t BLOCK_SIZE = 1 << 10;
 
 static void BM_ReduceBench(benchmark::State &state) {
   InitParallel(GetNumThreads());
