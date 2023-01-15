@@ -39,7 +39,11 @@ def parse_benchmarks(folder_name):
             continue
         with open(os.path.join(folder_name, bench_file)) as f:
             # print(bench_file)
-            bench = json.load(f)
+            try:
+                bench = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                print("Error while parsing", bench_file, e, ", skipping")
+                continue
             name = bench_file.split(".")[0]
             bench_type, bench_mode = split_bench_name(name)
             if bench_type not in benchmarks_by_type:
@@ -155,32 +159,33 @@ if __name__ == "__main__":
         fig = plot_benchmark(bench, bench_type)
         fig.savefig(os.path.join(res_path, bench_type + '.png'), bbox_inches='tight')
 
-    # plot with and without barrier
-    # group scheduling_times by suffix
-    scheduling_times_by_suffix = {}
-    for bench_mode, res in benchmarks["scheduling_dist"].items():
-        bench_mode, measure_mode = bench_mode.rsplit("_", 1)
-        if measure_mode not in scheduling_times_by_suffix:
-            scheduling_times_by_suffix[measure_mode] = {}
-        scheduling_times_by_suffix[measure_mode][bench_mode] = res["results"]
+    if "scheduling_dist" in benchmarks:
+        # plot with and without barrier
+        # group scheduling_times by suffix
+        scheduling_times_by_suffix = {}
+        for bench_mode, res in benchmarks["scheduling_dist"].items():
+            bench_mode, measure_mode = bench_mode.rsplit("_", 1)
+            if measure_mode not in scheduling_times_by_suffix:
+                scheduling_times_by_suffix[measure_mode] = {}
+            scheduling_times_by_suffix[measure_mode][bench_mode] = res["results"]
 
-    for measure_mode, times in scheduling_times_by_suffix.items():
-        fig = plot_scheduling_benchmarks(times)
-        fig.savefig(os.path.join(res_path, "scheduling_time_" + measure_mode + '.png'), bbox_inches='tight')
+        for measure_mode, times in scheduling_times_by_suffix.items():
+            fig = plot_scheduling_benchmarks(times)
+            fig.savefig(os.path.join(res_path, "scheduling_time_" + measure_mode + '.png'), bbox_inches='tight')
 
-    # plot average scheduling time for all benchs
-    # avg_times = {}
-    # for bench_type, times in scheduling_times.items():
-    #     avg_times[bench_type.split("_", 2)[-1]] = sum(times) / len(times)
-    # fig = plot_benchmark(avg_times, "average scheduling time")
-    # fig.savefig(os.path.join(res_path, 'avg_scheduling_time.png'))
+        # plot average scheduling time for all benchs
+        # avg_times = {}
+        # for bench_type, times in scheduling_times.items():
+        #     avg_times[bench_type.split("_", 2)[-1]] = sum(times) / len(times)
+        # fig = plot_benchmark(avg_times, "average scheduling time")
+        # fig.savefig(os.path.join(res_path, 'avg_scheduling_time.png'))
 
-    # plot scheduling dist
-    for bench_mode, res in benchmarks["scheduling_dist"].items():
-        fig = plot_scheduling_dist(res["results"])
-        for iter in res["results"]:
-            for thread_id, tasks in iter.items():
-                unique_cpus = set(t["cpu"] for t in tasks)
-                if len(unique_cpus) > 1:
-                    print(f"{bench_mode}: {thread_id} has tasks on different cpus: {unique_cpus}")
-        fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.png'), bbox_inches='tight')
+        # plot scheduling dist
+        for bench_mode, res in benchmarks["scheduling_dist"].items():
+            fig = plot_scheduling_dist(res["results"])
+            for iter in res["results"]:
+                for thread_id, tasks in iter.items():
+                    unique_cpus = set(t["cpu"] for t in tasks)
+                    if len(unique_cpus) > 1:
+                        print(f"{bench_mode}: {thread_id} has tasks on different cpus: {unique_cpus}")
+            fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.png'), bbox_inches='tight')
