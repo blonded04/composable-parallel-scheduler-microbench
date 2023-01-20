@@ -1,5 +1,6 @@
 #pragma once
 #include "modes.h"
+#include "num_threads.h"
 
 #ifdef EIGEN_MODE
 
@@ -8,12 +9,8 @@
 #include "../contrib/eigen/unsupported/Eigen/CXX11/TensorSymmetry"
 #include "../contrib/eigen/unsupported/Eigen/CXX11/ThreadPool"
 
-inline size_t GetEigenThreadsNum() {
-  return std::thread::hardware_concurrency();
-}
-
 inline auto EigenPool =
-    Eigen::ThreadPool(GetEigenThreadsNum() - 1); // 1 for main thread
+    Eigen::ThreadPool(GetNumThreads() - 1); // 1 for main thread
 
 class EigenPoolWrapper {
 public:

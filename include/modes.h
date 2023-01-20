@@ -34,3 +34,11 @@ inline std::string GetParallelMode() {
 
 #define EIGEN_SIMPLE 1
 #define EIGEN_RAPID 2
+
+#ifdef TBB_MODE
+#include <tbb/parallel_for.h>
+#endif
+
+#ifdef OMP_MODE
+#include <omp.h>
+#endif

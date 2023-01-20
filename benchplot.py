@@ -121,13 +121,19 @@ def plot_scheduling_dist(scheduling_dist):
         ax.set_xlabel("Cpu")
         # ax.get_figure().tight_layout()
 
-        thread_count = len(scheduling_dist[iter])
-        cpu_count = max(max(t["cpu"] for t in tasks) for tasks in scheduling_dist[iter].values()) + 1
+        thread_count = len(scheduling_dist[iter].keys())
+        cpu_count = len(set(t["cpu"] for tasks in scheduling_dist[iter].values() for t in tasks))
+        cpus = {}  # mapping cpu_id -> idx
+        threads = {}  # mapping thread_id -> idx
         data = np.ones((thread_count, cpu_count))
         for thread_id, tasks in scheduling_dist[iter].items():
             for t in tasks:
-                idx = cpu_count - 1 if thread_id == "-1" else int(thread_id)
-                data[idx, t["cpu"]] = 0
+                if thread_id not in threads:
+                    threads[thread_id] = len(threads)
+                cpu = t["cpu"]
+                if cpu not in cpus:
+                    cpus[cpu] = len(cpus)
+                data[threads[thread_id], cpus[cpu]] = 0
         ax.imshow(data, cmap='gray', origin='lower')
 
     for iter in range(row_count):

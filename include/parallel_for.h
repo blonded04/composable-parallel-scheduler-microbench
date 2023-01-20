@@ -24,6 +24,11 @@ inline void InitParallel(size_t threadsNum) {
 #endif
 #ifdef TBB_MODE
   static PinningObserver pinner; // just init observer
+  tbb::global_control(tbb::global_control::max_allowed_parallelism,
+                      threadsNum); // limit tbb threads
+#endif
+#ifdef OMP_MODE
+  omp_set_num_threads(threadsNum);
 #endif
 }
 
@@ -32,7 +37,7 @@ inline void InitParallel(size_t threadsNum) {
 template <typename F>
 inline void EigenParallelFor(size_t from, size_t to, F &&func) {
 #if EIGEN_MODE == EIGEN_SIMPLE
-  size_t blocks = GetEigenThreadsNum();
+  size_t blocks = GetNumThreads();
   size_t blockSize = (to - from + blocks - 1) / blocks;
   Eigen::Barrier barrier(blocks - 1);
   for (size_t i = 0; i < blocks - 1; ++i) {

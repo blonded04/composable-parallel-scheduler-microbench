@@ -2,40 +2,12 @@
 
 #include "eigen_pool.h"
 #include "modes.h"
+#include "num_threads.h"
 #include <iostream>
 #include <string>
 
-#ifdef TBB_MODE
-#include <tbb/blocked_range.h>
-#include <tbb/parallel_for.h>
-#endif
-
-#ifdef OMP_MODE
-#include <omp.h>
-#endif
-
 #include <cstddef>
 #include <thread>
-
-inline int GetNumThreads() {
-  int threads = 1;
-#if defined(TBB_MODE)
-  threads = tbb::info::
-      default_concurrency(); // tbb::this_task_arena::max_concurrency();
-#elif defined(OMP_MODE)
-  threads = omp_get_max_threads();
-#elif defined(SERIAL)
-  threads = 1;
-#elif defined(EIGEN_MODE)
-  threads = GetEigenThreadsNum();
-#else
-  static_assert(false, "Unsupported mode");
-#endif
-  if (const char *envThreads = std::getenv("BENCH_MAX_THREADS")) {
-    return std::min(threads, std::stoi(envThreads));
-  }
-  return threads;
-}
 
 inline int GetThreadIndex() {
 #if defined(TBB_MODE)
