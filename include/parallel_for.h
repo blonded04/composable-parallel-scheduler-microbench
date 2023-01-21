@@ -24,8 +24,8 @@ inline void InitParallel(size_t threadsNum) {
 #endif
 #ifdef TBB_MODE
   static PinningObserver pinner; // just init observer
-  tbb::global_control(tbb::global_control::max_allowed_parallelism,
-                      threadsNum); // limit tbb threads
+  static tbb::global_control threadLimit(
+      tbb::global_control::max_allowed_parallelism, threadsNum);
 #endif
 #ifdef OMP_MODE
   omp_set_num_threads(threadsNum);
