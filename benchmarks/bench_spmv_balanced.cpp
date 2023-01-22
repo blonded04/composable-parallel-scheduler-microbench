@@ -6,11 +6,13 @@
 
 using namespace SPMV;
 
+static constexpr size_t MATRIX_SIZE = 1 << 16;
+
 static void BM_SpmvBenchBalanced(benchmark::State &state) {
   InitParallel(GetNumThreads());
-  auto A = GenSparseMatrix<double, SparseKind::BALANCED>(state.range(0),
-                                                         state.range(1), 1e-3);
-  auto x = GenVector<double>(state.range(1));
+  auto A = GenSparseMatrix<double, SparseKind::BALANCED>(MATRIX_SIZE,
+                                                         MATRIX_SIZE, 1e-3);
+  auto x = GenVector<double>(MATRIX_SIZE);
   // allocate result only once
   std::vector<double> y(A.Dimensions.Rows);
   for (auto _ : state) {
@@ -18,13 +20,9 @@ static void BM_SpmvBenchBalanced(benchmark::State &state) {
   }
 }
 
-static constexpr size_t MIN_SIZE = 1 << 10;
-static constexpr size_t MAX_SIZE = 1 << 15;
-
 BENCHMARK(BM_SpmvBenchBalanced)
     ->Name("SpmvBalanced_" + GetParallelMode())
     ->UseRealTime()
-    ->Unit(benchmark::kMicrosecond)
-    ->RangePair(MIN_SIZE, MAX_SIZE, MIN_SIZE, MAX_SIZE);
+    ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

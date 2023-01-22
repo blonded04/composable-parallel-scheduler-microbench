@@ -1,5 +1,6 @@
 #include "../include/parallel_for.h"
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <random>
 #include <set>
@@ -98,24 +99,30 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
   out.Dimensions.Rows = n;
   out.Dimensions.Columns = m;
   auto valueGen = std::uniform_real_distribution<T>(-1e9, 1e9);
-  auto posGen = std::uniform_int_distribution<size_t>(0, n * m - 1);
 
   std::set<std::pair<size_t, size_t>> positions;
   size_t elements_n = n * m * density;
-  while (positions.size() < elements_n) {
-    size_t pos = posGen(RandomGenerator);
-    if constexpr (Kind == SparseKind::BALANCED) {
+  if constexpr (Kind == SparseKind::BALANCED) {
+    auto posGen = std::uniform_int_distribution<size_t>(0, n * m - 1);
+    for (size_t i = 0; i < n * m * density; ++i) {
+      size_t pos = posGen(RandomGenerator);
       positions.insert({pos / m, pos % m});
-    } else if constexpr (Kind == SparseKind::UNBALANCED) {
-      auto row = pos / m;
-      auto col = pos % m;
-      positions.insert(
-          {std::max(row, col), std::min(row, col)}); // triangle matrix
-    } else {
-      // check that all possible kinds are handled
-      static_assert(Kind == SparseKind::BALANCED ||
-                    Kind == SparseKind::UNBALANCED);
     }
+  } else if constexpr (Kind == SparseKind::UNBALANCED) {
+    auto posGen = std::uniform_int_distribution<size_t>(0, m - 1);
+    for (size_t i = 0; i != n; ++i) {
+      // sum of elementsCount = density * n * m / std::log(n + 1) * (1 + 1/2 +
+      // 1/3 + ... + 1/n) ~ density * n * m
+      size_t elementsCount = density * n * m / std::log(n + 1) / (i + 1);
+      for (size_t j = 0; j != elementsCount; ++j) {
+        size_t pos = posGen(RandomGenerator);
+        positions.insert({i, pos});
+      }
+    }
+  } else {
+    // check that all possible kinds are handled
+    static_assert(Kind == SparseKind::BALANCED ||
+                  Kind == SparseKind::UNBALANCED);
   }
 
   out.RowIndex.reserve(n + 1);
