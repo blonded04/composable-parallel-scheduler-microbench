@@ -7,6 +7,9 @@
 #include <thread>
 
 inline int GetNumThreads() {
+  if (const char *envThreads = std::getenv("BENCH_FORCE_THREADS")) {
+    return std::stoi(envThreads);
+  }
   int threads = 1;
 #if defined(TBB_MODE)
   threads = tbb::info::
