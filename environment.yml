@@ -13,6 +13,9 @@ dependencies:
   - gmock
   - gtest
   - benchmark
+  - matplotlib
+  - numpy
+  - seaborn
   # - libclang-cpp
   # - libcxx
   # - libstdcxx-ng
