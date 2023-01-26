@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define SLEEP 1
+#define SPIN 1
 #define BARRIER 2
 #define RUNNING 3
 
@@ -35,14 +35,12 @@ static std::vector<ScheduledTask> RunWithBarrier(size_t threadNum) {
   auto start = Now();
   ParallelFor(0, threadNum, [&](size_t i) {
     results[i] = ScheduledTask(i, start);
-    reported.fetch_add(1);
+    reported.fetch_add(1, std::memory_order_relaxed);
     // it's ok to block here because we want
     // to measure time of all threadNum threads
-    while (reported.load() != threadNum) {
-      // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      // std::this_thread::yield();
-
+    while (reported.load(std::memory_order_relaxed) != threadNum) {
       // we don't sleep or yield here because we want to use cpu
+      // like it's real workload
     }
   });
   return results;
@@ -53,34 +51,26 @@ static std::vector<ScheduledTask> RunWithSpin(size_t threadNum) {
   auto start = Now();
   ParallelFor(0, threadNum, [&](size_t i) {
     results[i] = ScheduledTask(i, start);
-    // spin 1 seconds
-    auto spinStart = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - spinStart <
-           std::chrono::seconds(1)) {
-      // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      //  std::this_thread::yield();
-
-      // we don't sleep or yield here because we want to use cpu
+    // emulating work
+    volatile uint64_t x = 0; // prevent compiler from optimizing out
+    for (size_t i = 0; i < 100'000'000; ++i) {
+      x += i;
     }
   });
   return results;
 }
 
 static std::vector<ScheduledTask> RunMultitask(size_t threadNum) {
-  auto tasksNum = threadNum * 10;
-  auto totalBenchTime = std::chrono::duration<double>(1);
-  auto sleepFor = totalBenchTime * threadNum / tasksNum;
+  uint64_t totalSpin = 1'000'000'000;
+  auto tasksNum = threadNum * 100;
   std::vector<ScheduledTask> results(tasksNum);
   auto start = Now();
   ParallelFor(0, tasksNum, [&](size_t i) {
     results[i] = ScheduledTask(i, start);
-    // spin for emulating work
-    auto spinStart = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - spinStart < sleepFor) {
-      // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      // std::this_thread::yield();
-
-      // we don't sleep or yield here because we want to use cpu
+    // emulating work
+    volatile uint64_t x = 0; // prevent compiler from optimizing out
+    for (size_t i = 0; i < totalSpin / tasksNum; ++i) {
+      x += i;
     }
   });
   return results;
@@ -102,7 +92,7 @@ static std::vector<ScheduledTask> RunOnce(size_t threadNum) {
 
 #if SCHEDULING_MEASURE_MODE == BARRIER
   return RunWithBarrier(threadNum);
-#elif SCHEDULING_MEASURE_MODE == SLEEP
+#elif SCHEDULING_MEASURE_MODE == SPIN
   return RunWithSpin(threadNum);
 #elif SCHEDULING_MEASURE_MODE == MULTITASK
   return RunMultitask(threadNum);
