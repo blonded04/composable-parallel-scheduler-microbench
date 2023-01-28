@@ -50,7 +50,7 @@ inline void EigenParallelFor(size_t from, size_t to, F &&func) {
           }
           barrier.Notify();
         },
-        i, 1);
+        i, i + 1);
   }
   // main thread
   for (size_t i = from + (blocks - 1) * blockSize; i < to; ++i) {
