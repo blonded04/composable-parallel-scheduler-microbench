@@ -65,40 +65,59 @@ def parse_benchmarks(folder_name):
 
 def plot_scheduling_benchmarks(scheduling_times):
     # x for thread_idx, y for time
-    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
     min_times = [(bench_type, [[min([t["time"] for t in times]) for times in iter.values()] for iter in results]) for bench_type, results in scheduling_times.items()]
     # print(list(scheduling_times.items())[0][1][0])
     # items = [(bench_type, [[t["time"] for t in iter.values()] for iter in tasks]) for bench_type, tasks in scheduling_times.items()]
-    lines = ["-", "--", "-.", ":"]
+    runtimes = list(set(name.split("_")[0] for (name, _) in min_times))
+    # group by prefix:
+    rows = len(runtimes) + 1
+    cols = 1
+    width = 18
+    height = width / 3 * rows
+    fig, ax = plt.subplots(rows, cols, figsize=(width, height))
     for bench_type, times in reversed(sorted(min_times,
                                  key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))):
         # todo: better way to visualize?
         # min time per thread for each idx in range of thread count
         times = np.asarray(times)
+        # plot distribution of all times for iterations as scatter around time
+        runtime_ax = ax[runtimes.index(bench_type.split("_")[0])]
         means = np.min(times, axis=0)
         # sort means array
         means = np.sort(means, axis=0)
         stds = np.std(times, axis=0)
         # print(bench_type, means, stds)
-        # TODO: plot stds
-        ax.plot(range(len(means)), means, label=bench_type, linestyle=random.choice(lines))
-    ax.set_title("Scheduling time")
-    ax.set_xlabel("Index of thread")
-    ax.set_ylabel("Clock ticks")
-    ax.legend()
+        # TODO: plot stds?
+        style = random.choice(["-", "--", "-.", ":"])
+        color = random.choice(["b", "g", "r", "c", "m", "y", "k"])
+        runtime_ax.plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
+        # all in one plot
+        ax[-1].plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
+
+
+    for runtime in runtimes:
+        idx = runtimes.index(runtime)
+        ax[idx].set_title("Scheduling time, " + runtime)
+    ax[-1].set_title("Scheduling time, all")
+    for runtime_ax in ax:
+        runtime_ax.set_xlabel("Index of thread (sorted by time of first task)")
+        runtime_ax.set_ylabel("Time, us")
+        runtime_ax.legend()
     return fig
 
 
 def plot_scheduling_dist(scheduling_dist):
     # plot heatmap for map of thread_idx -> tasks list
     row_count = len(scheduling_dist)
-    fig = plt.figure(figsize=(12, 18))
-    fig.suptitle("Scheduling distribution")
+    fig = plt.figure(figsize=(18, 24))
+    fig.suptitle("Scheduling distribution, results for each iteration")
     fig.tight_layout()
     gs = GridSpec(row_count, 3, figure=fig, width_ratios=[1, 1, 4])
 
     for iter in range(row_count):
         ax = fig.add_subplot(gs[iter, 0])
+        if iter == 0:
+            ax.set_title("Distribution of tasks to threads")
         ax.set_ylabel("Thread")
         ax.set_xlabel("Task")
         ax.xaxis.set_label_position('top')
@@ -106,16 +125,21 @@ def plot_scheduling_dist(scheduling_dist):
 
         thread_count = len(scheduling_dist[iter])
         task_count = max(max(t["index"] for t in tasks) for tasks in scheduling_dist[iter].values()) + 1
-        data = np.ones((thread_count, task_count))
-        for thread_idx, tasks in sorted(scheduling_dist[iter].items(), key=lambda x: x[0]):
-            max_time = max(t["time"] for t in tasks)
+        task_height = int(task_count / thread_count)
+        data = np.ones((thread_count * task_height, task_count))
+        for thread_id, tasks in sorted(scheduling_dist[iter].items(), key=lambda x: x[0]):
             for t in tasks:
-                data[int(thread_idx), t["index"]] = t["time"] / max_time * 0.7
+                idx = thread_count - 1 if thread_id == "-1" else int(thread_id)
+                # data[idx, t["index"]] = 0
+                # fill rectangle by zeros
+                data[idx * task_height: (idx + 1) * task_height, t["index"]] = 0
         ax.imshow(data, cmap='gray', origin='lower')
 
     # plot heatmap thread id, cpu id
     for iter in range(row_count):
         ax = fig.add_subplot(gs[iter, 1])
+        if iter == 0:
+            ax.set_title("Distribution of threads to cpus")
         ax.set_ylabel("Thread")
         ax.set_xlabel("Cpu")
         ax.xaxis.set_label_position('top')
@@ -141,6 +165,8 @@ def plot_scheduling_dist(scheduling_dist):
         ax.set_ylabel("Clock ticks")
         ax.set_xlabel("Thread")
         # ax.get_figure().tight_layout()
+        if iter == 0:
+            ax.set_title("Time since start of first executed task for each thread (sorted by time)")
 
         thread_count = len(scheduling_dist[iter])
         times = [min(task["time"] for task in tasks) for tasks in scheduling_dist[iter].values()]

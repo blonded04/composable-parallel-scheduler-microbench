@@ -34,6 +34,8 @@ inline std::string GetParallelMode() {
 
 #define EIGEN_SIMPLE 1
 #define EIGEN_RAPID 2
+#define EIGEN_TIMESPAN 3
+#define EIGEN_STATIC 4
 
 #ifdef TBB_MODE
 #include <tbb/parallel_for.h>

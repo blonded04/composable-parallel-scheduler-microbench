@@ -9,14 +9,25 @@
 #include "../contrib/eigen/unsupported/Eigen/CXX11/TensorSymmetry"
 #include "../contrib/eigen/unsupported/Eigen/CXX11/ThreadPool"
 
+#if EIGEN_MODE == EIGEN_RAPID
 inline auto EigenPool =
     Eigen::ThreadPool(GetNumThreads() - 1); // 1 for main thread
+#else
+inline auto EigenPool = Eigen::ThreadPool(GetNumThreads(), true,
+                                          true); // todo: disable spinning?
+#endif
 
 class EigenPoolWrapper {
 public:
   template <typename F> void run(F &&f) {
     EigenPool.Schedule(std::forward<F>(f));
   }
+
+  template <typename F> void run_on_thread(F &&f, size_t hint) {
+    EigenPool.RunOnThread(std::forward<F>(f), hint);
+  }
+
+  void join_main_thread() { EigenPool.JoinMainThread(); }
 
   void wait() {
     // TODO: implement
