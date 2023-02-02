@@ -4,24 +4,20 @@
 
 #include "../include/parallel_for.h"
 
-static constexpr size_t MIN_SIZE = 1 << 10;
-static constexpr size_t MAX_SIZE = 1 << 27;
+static constexpr size_t SIZE_POW = 20;
 
 static void BM_ScanBench(benchmark::State &state) {
   InitParallel(GetNumThreads());
-  size_t size = state.range(0);
-  size_t size_pow = Scan::GetBlockPow(size);
   // allocate data and result once, reuse it for all iterations
-  auto data = SPMV::GenVector<double>(size);
+  auto data = SPMV::GenVector<double>(1 << SIZE_POW);
   for (auto _ : state) {
-    Scan::Scan(size_pow, data);
+    Scan::Scan(SIZE_POW, data);
   }
 }
 
 BENCHMARK(BM_ScanBench)
     ->Name("Scan_" + GetParallelMode())
     ->UseRealTime()
-    ->Unit(benchmark::kMicrosecond)
-    ->Range(MIN_SIZE, MAX_SIZE);
+    ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
