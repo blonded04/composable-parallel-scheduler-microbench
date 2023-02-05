@@ -8,10 +8,10 @@ static constexpr size_t BLOCK_SIZE = 1 << 10;
 
 static void BM_ReduceBench(benchmark::State &state) {
   InitParallel(GetNumThreads());
-  auto blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
   // allocate data and result once, reuse it for all iterations
-  auto data = SPMV::GenVector<double>(MAX_SIZE);
-  std::vector<double> result(blocks);
+  static auto blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  static auto data = SPMV::GenVector<double>(MAX_SIZE);
+  static std::vector<double> result(blocks);
 
   for (auto _ : state) {
     ParallelFor(0, blocks, [&](size_t i) {

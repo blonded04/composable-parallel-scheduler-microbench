@@ -12,11 +12,11 @@ static constexpr size_t MATRIX_SIZE =
 
 static void BM_SpmvBenchBalanced(benchmark::State &state) {
   InitParallel(GetNumThreads());
-  auto A = GenSparseMatrix<double, SparseKind::BALANCED>(MATRIX_SIZE,
-                                                         MATRIX_SIZE, 1e-3);
-  auto x = GenVector<double>(MATRIX_SIZE);
-  // allocate result only once
-  std::vector<double> y(A.Dimensions.Rows);
+  // cache matrix and vector for all iterations
+  static auto A = GenSparseMatrix<double, SparseKind::BALANCED>(
+      MATRIX_SIZE, MATRIX_SIZE, 1e-3);
+  static auto x = GenVector<double>(MATRIX_SIZE);
+  static std::vector<double> y(A.Dimensions.Rows);
   for (auto _ : state) {
     MultiplyMatrix(A, x, y, 128 * 128);
   }

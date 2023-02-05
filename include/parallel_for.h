@@ -25,9 +25,15 @@ inline Harness::RapidStart<EigenPoolWrapper> RapidGroup;
 #include "eigen_pinner.h"
 #endif
 
+namespace {
+struct InitOnce {
+  template <typename F> InitOnce(F &&f) { f(); }
+};
+} // namespace
+
 inline void InitParallel(size_t threadsNum) {
 #if TBB_MODE == TBB_RAPID || EIGEN_MODE == EIGEN_RAPID
-  RapidGroup.init(threadsNum);
+  static InitOnce rapidInit{[threadsNum]() { RapidGroup.init(threadsNum); }};
 #endif
 #ifdef TBB_MODE
   static PinningObserver pinner; // just init observer
@@ -35,7 +41,7 @@ inline void InitParallel(size_t threadsNum) {
       tbb::global_control::max_allowed_parallelism, threadsNum);
 #endif
 #ifdef OMP_MODE
-  omp_set_num_threads(threadsNum);
+  static InitOnce ompInit{[threadsNum]() { omp_set_num_threads(threadsNum); }};
 #endif
 #ifdef EIGEN_MODE
 #if EIGEN_MODE != EIGEN_RAPID
