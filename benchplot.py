@@ -1,7 +1,10 @@
 import json
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
+import itertools
 import numpy as np
+import math
 import random
 import os
 from matplotlib.gridspec import GridSpec
@@ -21,14 +24,16 @@ def split_bench_name(s):
 # return new plot
 def plot_benchmark(benchmarks, title):
     benchmarks = sorted(benchmarks.items(), key=lambda x: x[1])
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
+    fig, (ax) = plt.subplots(1, 1, figsize=(16, 12))
     min_time = sorted(benchmarks, key=lambda x: x[1])[0][1]
-    ax1.set_xlabel("Normalized perfomance of " + title)
+    # ax1.set_xlabel("Normalized perfomance of " + title)
     # print([(name, min_time / time) for name, time in benchmarks])
-    ax1 = ax1.barh(*zip(*[(name, min_time / time) for name, time in benchmarks]))
+    ax.barh(*zip(*[(name, min_time / time) for name, time in benchmarks]))
+    plt.yticks(fontsize=20)
 
-    ax2.set_xlabel("Time of " + title + ", us")
-    ax2 = ax2.barh(*zip(*benchmarks))
+
+    # ax2.set_xlabel("Time of " + title + ", us")
+    # ax2 = ax2.barh(*zip(*benchmarks))
     return fig
 
 
@@ -70,40 +75,41 @@ def plot_scheduling_benchmarks(scheduling_times):
     # items = [(bench_type, [[t["time"] for t in iter.values()] for iter in tasks]) for bench_type, tasks in scheduling_times.items()]
     runtimes = list(set(name.split("_")[0] for (name, _) in min_times))
     # group by prefix:
-    rows = len(runtimes) + 1
-    cols = 1
-    width = 18
-    height = width / 3 * rows
-    fig, ax = plt.subplots(rows, cols, figsize=(width, height))
+    # fig, ax = plt.subplots(rows, cols, figsize=(width, height))
+    # fig, ax = plt.subplots(figsize=(width, height))
+    plots = {runtime: plt.subplots(figsize=(18, 6)) for runtime in runtimes}
+    plots["all"] = plt.subplots(figsize=(18, 6))
+    styles = itertools.cycle(["-", "--", "-.", ":"])
+    colors = itertools.cycle('bgrcmk')
+    style = next(styles)
+    color = next(colors)
     for bench_type, times in reversed(sorted(min_times,
-                                 key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))):
+                                key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))):
         # todo: better way to visualize?
         # min time per thread for each idx in range of thread count
         times = np.asarray(times)
         # plot distribution of all times for iterations as scatter around time
-        runtime_ax = ax[runtimes.index(bench_type.split("_")[0])]
         means = np.min(times, axis=0)
         # sort means array
         means = np.sort(means, axis=0)
-        stds = np.std(times, axis=0)
-        # print(bench_type, means, stds)
-        # TODO: plot stds?
-        style = random.choice(["-", "--", "-.", ":"])
-        color = random.choice(["b", "g", "r", "c", "m", "y", "k"])
-        runtime_ax.plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
-        # all in one plot
-        ax[-1].plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
-
+        # TODO: clean up code
+        if color == "k":
+            style = next(styles)
+        color = next(colors)
+        _, ax = plots[bench_type.split("_")[0]]
+        ax.plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
+        plots["all"][1].plot(range(len(means)), means, label=bench_type, linestyle=style, color=color)
 
     for runtime in runtimes:
-        idx = runtimes.index(runtime)
-        ax[idx].set_title("Scheduling time, " + runtime)
-    ax[-1].set_title("Scheduling time, all")
-    for runtime_ax in ax:
-        runtime_ax.set_xlabel("Index of thread (sorted by time of first task)")
-        runtime_ax.set_ylabel("Time, us")
-        runtime_ax.legend()
-    return fig
+        _, ax = plots[runtime]
+        ax.ticklabel_format(style='plain')
+        # ax.set_title("Scheduling time, " + runtime)
+        # use yticks bigger and xticks fontsize
+        ax.tick_params(axis='both', which='major', labelsize=20)
+        ax.set_xlabel("Index of thread (sorted by time of first task)", fontsize=20)
+        ax.set_ylabel("Cycles", fontsize=20)
+        ax.legend(fontsize=14)
+    return plots
 
 
 def plot_scheduling_dist(scheduling_dist):
@@ -190,7 +196,8 @@ if __name__ == "__main__":
             continue
         print("Processing", bench_type)
         fig = plot_benchmark(bench, bench_type)
-        fig.savefig(os.path.join(res_path, bench_type + '.png'), bbox_inches='tight')
+        fig.savefig(os.path.join(res_path, bench_type + '.eps'), bbox_inches='tight', format='eps')
+        fig.savefig(os.path.join(res_path, bench_type + '.png'), bbox_inches='tight', format='png')
         plt.close()
 
     if "scheduling_dist" in benchmarks:
@@ -205,8 +212,11 @@ if __name__ == "__main__":
 
         for measure_mode, times in scheduling_times_by_suffix.items():
             print("Processing scheduling time", measure_mode)
-            fig = plot_scheduling_benchmarks(times)
-            fig.savefig(os.path.join(res_path, "scheduling_time_" + measure_mode + '.png'), bbox_inches='tight')
+            plots = plot_scheduling_benchmarks(times)
+            for bench_type, plot in plots.items():
+                fig, ax = plot
+                fig.savefig(os.path.join(res_path, "scheduling_time_" + bench_type + "_" + measure_mode + '.eps'), bbox_inches='tight', format='eps')
+                fig.savefig(os.path.join(res_path, "scheduling_time_" + bench_type + "_" + measure_mode + '.png'), bbox_inches='tight', format='png')
             plt.close()
 
         # plot average scheduling time for all benchs
@@ -226,5 +236,6 @@ if __name__ == "__main__":
                     unique_cpus = set(t["cpu"] for t in tasks)
                     if len(unique_cpus) > 1:
                         print(f"{bench_mode}: thread {thread_id} has tasks executed on differenet cpus: {unique_cpus}")
-            fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.png'), bbox_inches='tight')
+            fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.eps'), bbox_inches='tight', format='eps')
+            fig.savefig(os.path.join(res_path, "scheduling_dist_" + bench_mode + '.png'), bbox_inches='tight', format='png')
             plt.close()
