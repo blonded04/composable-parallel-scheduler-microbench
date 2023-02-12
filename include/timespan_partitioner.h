@@ -103,7 +103,7 @@ struct Task {
     }
 
     // make balancing tasks for remaining iterations
-    while (IsDivisible()) {
+    if (IsDivisible()) {
       // TODO: divide not by 2, maybe proportionally or other way
       size_t mid = (Start_ + End_) / 2;
       // TODO: by default Eigen's Schedule push task to the current queue, maybe
