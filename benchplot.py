@@ -38,7 +38,7 @@ def plot_benchmark(benchmarks, title, verbose):
     if verbose:
         axis[1].barh(*zip(*benchmarks))
         axis[0].set_xlabel(title + ", normalized (higher is better)")
-        axis[1].set_xlabel(title + ", absolute time (lower is better), ms")
+        axis[1].set_xlabel(title + ", absolute time (lower is better), us")
         for ax in axis:
             ax.tick_params(axis='both', which='major', labelsize=14)
     else:
