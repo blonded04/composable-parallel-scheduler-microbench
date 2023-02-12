@@ -31,25 +31,6 @@ struct InitOnce {
 };
 } // namespace
 
-inline void InitParallel(size_t threadsNum) {
-#if TBB_MODE == TBB_RAPID || EIGEN_MODE == EIGEN_RAPID
-  static InitOnce rapidInit{[threadsNum]() { RapidGroup.init(threadsNum); }};
-#endif
-#ifdef TBB_MODE
-  static PinningObserver pinner; // just init observer
-  static tbb::global_control threadLimit(
-      tbb::global_control::max_allowed_parallelism, threadsNum);
-#endif
-#ifdef OMP_MODE
-  static InitOnce ompInit{[threadsNum]() { omp_set_num_threads(threadsNum); }};
-#endif
-#ifdef EIGEN_MODE
-#if EIGEN_MODE != EIGEN_RAPID
-  static EigenPinner pinner(threadsNum);
-#endif
-#endif
-}
-
 #ifdef EIGEN_MODE
 // TODO: move to eigen header
 template <typename F>
@@ -145,4 +126,32 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
 #else
   static_assert(false, "Wrong mode");
 #endif
+}
+
+inline void Warmup(size_t threadsNum) {
+  Eigen::Barrier barrier(threadsNum);
+  ParallelFor(0, threadsNum, [&barrier](size_t) {
+    barrier.Notify();
+    barrier.Wait(); // wait for all threads to start
+  });
+}
+
+inline void InitParallel(size_t threadsNum) {
+#if TBB_MODE == TBB_RAPID || EIGEN_MODE == EIGEN_RAPID
+  static InitOnce rapidInit{[threadsNum]() { RapidGroup.init(threadsNum); }};
+#endif
+#ifdef TBB_MODE
+  static PinningObserver pinner; // just init observer
+  static tbb::global_control threadLimit(
+      tbb::global_control::max_allowed_parallelism, threadsNum);
+#endif
+#ifdef OMP_MODE
+  static InitOnce ompInit{[threadsNum]() { omp_set_num_threads(threadsNum); }};
+#endif
+#ifdef EIGEN_MODE
+#if EIGEN_MODE != EIGEN_RAPID
+  static EigenPinner pinner(threadsNum);
+#endif
+#endif
+  static InitOnce warmup{[threadsNum]() { Warmup(threadsNum); }};
 }

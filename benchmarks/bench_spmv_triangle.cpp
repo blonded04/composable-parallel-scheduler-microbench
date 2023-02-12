@@ -7,13 +7,17 @@ using namespace SPMV;
 
 static constexpr size_t MATRIX_SIZE = 1 << 16;
 
-static void BM_SpmvBenchTriangle(benchmark::State &state) {
+static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
-  // cache matrix and vector for all iterations
-  static auto A = GenSparseMatrix<double, SparseKind::TRIANGLE>(
-      MATRIX_SIZE, MATRIX_SIZE, 1e-3);
-  static auto x = GenVector<double>(MATRIX_SIZE);
-  static std::vector<double> y(A.Dimensions.Rows);
+}
+
+// cache matrix and vector for all iterations
+static auto A = GenSparseMatrix<double, SparseKind::TRIANGLE>(
+    MATRIX_SIZE, MATRIX_SIZE, 1e-3);
+static auto x = GenVector<double>(MATRIX_SIZE);
+static std::vector<double> y(A.Dimensions.Rows);
+
+static void BM_SpmvBenchTriangle(benchmark::State &state) {
   for (auto _ : state) {
     MultiplyMatrix(A, x, y);
   }
@@ -21,6 +25,7 @@ static void BM_SpmvBenchTriangle(benchmark::State &state) {
 
 BENCHMARK(BM_SpmvBenchTriangle)
     ->Name("SpmvTriangle_" + GetParallelMode())
+    ->Setup(DoSetup)
     ->UseRealTime()
     ->Unit(benchmark::kMicrosecond);
 

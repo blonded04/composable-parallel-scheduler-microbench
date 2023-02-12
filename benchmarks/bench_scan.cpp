@@ -6,10 +6,14 @@
 
 static constexpr size_t SIZE_POW = 20;
 
-static void BM_ScanBench(benchmark::State &state) {
+static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
-  // allocate data and result once, reuse it for all iterations
-  static auto data = SPMV::GenVector<double>(1 << SIZE_POW);
+}
+
+// cache data for all iterations
+static auto data = SPMV::GenVector<double>(1 << SIZE_POW);
+
+static void BM_ScanBench(benchmark::State &state) {
   for (auto _ : state) {
     Scan::Scan(SIZE_POW, data);
   }
@@ -17,6 +21,7 @@ static void BM_ScanBench(benchmark::State &state) {
 
 BENCHMARK(BM_ScanBench)
     ->Name("Scan_" + GetParallelMode())
+    ->Setup(DoSetup)
     ->UseRealTime()
     ->Unit(benchmark::kMicrosecond);
 
