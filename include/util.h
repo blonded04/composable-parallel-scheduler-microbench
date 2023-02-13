@@ -45,3 +45,29 @@ inline void CpuRelax() {
 #error "Unsupported architecture"
 #endif
 }
+
+inline void PinThread(size_t slot_number) {
+  cpu_set_t mask;
+  auto mask_size = sizeof(mask);
+  if (sched_getaffinity(0, mask_size, &mask)) {
+    std::cerr << "Error in sched_getaffinity" << std::endl;
+    return;
+  }
+  // clear all bits in current_affinity except slot_numbers'th non-zero bit
+  size_t nonzero_bits = 0;
+  for (size_t i = 0; i < CPU_SETSIZE; ++i) {
+    if (CPU_ISSET(i, &mask)) {
+      if (nonzero_bits == slot_number) {
+        CPU_ZERO(&mask);
+        CPU_SET(i, &mask);
+        break;
+      }
+      ++nonzero_bits;
+    }
+  }
+
+  if (auto err = sched_setaffinity(0, mask_size, &mask)) {
+    std::cerr << "Error in sched_setaffinity, slot_number = " << slot_number
+              << ", err = " << err << std::endl;
+  }
+}
