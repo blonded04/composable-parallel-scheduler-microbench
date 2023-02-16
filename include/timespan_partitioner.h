@@ -104,6 +104,7 @@ struct Task {
 
     // make balancing tasks for remaining iterations
     if (IsDivisible()) {
+      // TODO: maybe we need to check "depth" - number of being stolen times?
       // TODO: divide not by 2, maybe proportionally or other way
       size_t mid = (Start_ + End_) / 2;
       // TODO: by default Eigen's Schedule push task to the current queue, maybe

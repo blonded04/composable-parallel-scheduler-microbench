@@ -26,6 +26,10 @@ bench_spmv:
 	@mkdir -p raw_results/spmv
 	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_spmv* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/spmv/$$x.json; done
 
+bench_spin:
+	@mkdir -p raw_results/spin
+	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_spin* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/spin/$$x.json; done
+
 bench_reduce:
 	@mkdir -p raw_results/reduce
 	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_reduce_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/reduce/$$x.json; done
