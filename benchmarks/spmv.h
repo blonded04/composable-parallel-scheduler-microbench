@@ -109,7 +109,7 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
   size_t elements_n = n * m * density;
   if constexpr (Kind == SparseKind::BALANCED) {
     auto posGen = std::uniform_int_distribution<size_t>(0, n * m - 1);
-    for (size_t i = 0; i < n * m * density; ++i) {
+    for (size_t i = 0; i < elements_n; ++i) {
       size_t pos = posGen(RandomGenerator);
       positions.insert({pos / m, pos % m});
     }
@@ -175,4 +175,7 @@ template <typename T> std::vector<T> GenVector(size_t m) {
   }
   return x;
 }
+
+inline constexpr size_t MATRIX_SIZE = 1 << 14;
+inline constexpr double DENSITY = 1.0 / (1 << 7);
 } // namespace SPMV

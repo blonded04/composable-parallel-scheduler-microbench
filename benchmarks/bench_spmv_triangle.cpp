@@ -5,15 +5,13 @@
 
 using namespace SPMV;
 
-static constexpr size_t MATRIX_SIZE = 1 << 16;
-
 static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
 }
 
 // cache matrix and vector for all iterations
 static auto A = GenSparseMatrix<double, SparseKind::TRIANGLE>(
-    MATRIX_SIZE, MATRIX_SIZE, 1e-3);
+    MATRIX_SIZE, MATRIX_SIZE, DENSITY);
 static auto x = GenVector<double>(MATRIX_SIZE);
 static std::vector<double> y(A.Dimensions.Rows);
 
