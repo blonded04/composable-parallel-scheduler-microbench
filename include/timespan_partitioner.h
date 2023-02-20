@@ -60,16 +60,9 @@ struct Task {
                         End_};
         if (otherData.From < otherData.To) {
           End_ = otherData.From;
-          // divide otherData range to K_SPLIT (actually 2) parts
           Range otherThreads{Split_.Threads.From + 1, Split_.Threads.To};
           size_t parts = std::min(std::min(Split_.K_SPLIT, otherThreads.Size()),
                                   otherData.Size());
-          // std::cerr << "Splitting data [" + std::to_string(otherData.From) +
-          //                  ";" + std::to_string(otherData.To) +
-          //                  ") on threads [" +
-          //                  std::to_string(otherThreads.From) + ";" +
-          //                  std::to_string(otherThreads.To) +
-          //                  ") parts: " + std::to_string(parts) + " \n";
           auto threadsSize = otherThreads.Size();
           auto threadStep = threadsSize / parts;
           auto increareThreadStepFor = threadsSize % parts;
@@ -83,11 +76,6 @@ struct Task {
             auto dataSplit =
                 std::min(otherData.To,
                          otherData.From + dataStep + (i < increaseDataStepFor));
-            // std::cerr << "Scheduling range [" + std::to_string(dataFrom) +
-            // ";" +
-            //                  std::to_string(dataTo) + ") on threads [" +
-            //                  std::to_string(threadFrom) + ";" +
-            //                  std::to_string(threadTo) + ") \n";
             assert(otherData.From < dataSplit);
             assert(otherThreads.From < threadSplit);
             Sched_.run_on_thread(
@@ -101,8 +89,9 @@ struct Task {
           }
           assert(otherData.From == otherData.To);
           assert(otherThreads.From == otherThreads.To ||
-                 parts < K_SPLIT &&
-                     otherThreads.From + (K_SPLIT - parts) == otherThreads.To);
+                 parts < Split_.K_SPLIT &&
+                     otherThreads.From + (Split_.K_SPLIT - parts) ==
+                         otherThreads.To);
         }
       }
     }

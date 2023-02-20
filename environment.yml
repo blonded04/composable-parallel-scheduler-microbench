@@ -7,6 +7,7 @@ dependencies:
   - compilers
   - clang>=14
   - clangxx>=14
+  - compiler-rt # sanitizers
   - llvm-openmp
   - libhwloc # for tbb
   - gmock
