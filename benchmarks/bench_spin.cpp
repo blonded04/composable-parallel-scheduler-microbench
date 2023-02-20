@@ -53,10 +53,23 @@ static void BM_Spin(benchmark::State &state) {
 #endif
 }
 
+inline std::string GetSpinPayload() {
+#if defined(RELAX)
+  return "RELAX";
+#elif defined(ATOMIC)
+  return "ATOMIC";
+#elif defined(DISTRIBUTED_READ)
+  return "DISTRIBUTED_READ";
+#else
+  static_assert(false, "Unsupported mode");
+#endif
+}
+
 BENCHMARK(BM_Spin)
-    ->Name("Spin_" + GetParallelMode())
+    ->Name(std::string("Spin_") + GetSpinPayload() + "_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
+    ->ArgNames({"tasks", "iters"})
     ->Args({1 << 10, 1 << 10})         // few small tasks
     ->Args({GetNumThreads(), 1 << 20}) // few big tasks
     ->Args({1 << 13, 1 << 13})         // something in between

@@ -8,6 +8,7 @@ import itertools
 import time
 import math
 import numpy as np
+import re
 import os
 from matplotlib.gridspec import GridSpec
 
@@ -59,14 +60,16 @@ def parse_benchmarks(folder_name):
                 continue
             name = bench_file.split(".")[0]
             bench_type, bench_mode = split_bench_name(name)
-            if bench_type not in benchmarks_by_type:
-                benchmarks_by_type[bench_type] = {}
             if "benchmarks" in bench:
                 # TODO: take not only last bench
-                res = bench["benchmarks"][-1]
-                benchmarks_by_type[bench_type][bench_mode] = res["real_time"]
+                for res in bench["benchmarks"]:
+                    params = "_".join(x.group()[1:] for x in re.finditer(r'\/\w+:\d+', res["name"]))
+                    bench_type_with_params = bench_type
+                    if params != "":
+                        bench_type_with_params += "-" + params
+                    benchmarks_by_type.setdefault(bench_type_with_params, {})[bench_mode] = res["real_time"]
             else:
-                benchmarks_by_type[bench_type][bench_mode] = bench
+                benchmarks_by_type.setdefault(bench_type, {})[bench_mode] = bench
     return benchmarks_by_type
 
 
@@ -82,7 +85,7 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
     color = next(colors)
     max_y = []
     for bench_type, times in reversed(sorted(min_times,
-                                key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))):
+                                             key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))):
         # todo: better way to visualize?
         # min time per thread for each idx in range of thread count
         times = np.asarray(times)
