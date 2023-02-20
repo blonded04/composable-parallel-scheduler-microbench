@@ -4,32 +4,53 @@
 #include "spmv.h"
 #include <iostream>
 
+#define RELAX 1
+#define ATOMIC 2
+#define DISTRIBUTED_READ 3
+
 static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
 }
 
 static void BM_Spin(benchmark::State &state) {
+#if SPIN_PAYLOAD == RELAX
   for (auto _ : state) {
-
-    //   std::vector<size_t> v(GetNumThreads(), 123);
-    //   ParallelFor(0, state.range(0), [&](size_t i) {
-    //     size_t index = GetThreadIndex();
-    //     volatile size_t x = 0;
-    //     for (size_t i = 0; i != state.range(1); ++i) {
-    //       // CpuRelax();
-    //       x = v[index];
-    //     }
-    //   });
-    // }
-
-    ParallelFor(0, state.range(0), [&](size_t i) {
-      volatile size_t x = 0;
-      for (size_t i = 0; i != state.range(1); ++i) {
-        // CpuRelax();
-        x += i;
+    ParallelFor(0, state.range(0), [cnt = state.range(1)](size_t i) {
+      for (size_t i = 0; i != cnt; ++i) {
+        CpuRelax();
       }
     });
   }
+#elif SPIN_PAYLOAD == ATOMIC
+  std::atomic<int> x = 0;
+  for (auto _ : state) {
+    ParallelFor(0, state.range(0), [&x, cnt = state.range(1)](size_t i) {
+      volatile int y = 0;
+      for (size_t i = 0; i != cnt; ++i) {
+        y = x.load();
+      }
+    });
+  }
+#elif SPIN_PAYLOAD == DISTRIBUTED_READ
+  std::vector<int *> pointers(state.range(0));
+  for (auto &p : pointers) {
+    p = new int(0);
+  }
+  for (auto _ : state) {
+    ParallelFor(0, state.range(0), [&pointers, cnt = state.range(1)](size_t i) {
+      volatile size_t y = 0;
+      auto p = pointers[i];
+      for (size_t i = 0; i != cnt; ++i) {
+        y = *p;
+      }
+    });
+  }
+  for (auto &p : pointers) {
+    delete p;
+  }
+#else
+  static_assert(false, "Unsupported mode");
+#endif
 }
 
 BENCHMARK(BM_Spin)
