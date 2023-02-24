@@ -26,6 +26,7 @@ BENCHMARK(BM_SpmvBenchBalanced)
     ->Name("SpmvBalanced_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
+    ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

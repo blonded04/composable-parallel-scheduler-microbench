@@ -25,6 +25,7 @@ BENCHMARK(BM_SpmvBenchTriangle)
     ->Name("SpmvTriangle_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
+    ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

@@ -25,6 +25,7 @@ BENCHMARK(BM_SpmvBenchHyperbolic)
     ->Name("SpmvHyperbolic_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
+    ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

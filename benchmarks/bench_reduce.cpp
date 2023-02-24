@@ -33,6 +33,7 @@ BENCHMARK(BM_ReduceBench)
     ->Name("Reduce_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
+    ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
