@@ -12,6 +12,12 @@ static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
 }
 
+namespace {
+struct AlignedAtomic {
+  alignas(64) std::atomic<int> value;
+};
+} // namespace
+
 static void BM_Spin(benchmark::State &state) {
 #if SPIN_PAYLOAD == RELAX
   for (auto _ : state) {
@@ -22,31 +28,29 @@ static void BM_Spin(benchmark::State &state) {
     });
   }
 #elif SPIN_PAYLOAD == ATOMIC
-  std::atomic<int> x = 0;
+  auto atomicPtr = std::make_unique<AlignedAtomic>();
   for (auto _ : state) {
-    ParallelFor(0, state.range(0), [&x, cnt = state.range(1)](size_t i) {
-      volatile int y = 0;
-      for (size_t i = 0; i != cnt; ++i) {
-        y = x.load();
-      }
-    });
+    ParallelFor(0, state.range(0),
+                [p = atomicPtr.get(), cnt = state.range(1)](size_t i) {
+                  volatile int y = 0;
+                  for (size_t i = 0; i != cnt; ++i) {
+                    y = p->value.load();
+                  }
+                });
   }
 #elif SPIN_PAYLOAD == DISTRIBUTED_READ
-  std::vector<int *> pointers(state.range(0));
+  std::vector<std::unique_ptr<int>> pointers(state.range(0));
   for (auto &p : pointers) {
-    p = new int(0);
+    p = std::make_unique<int>(0);
   }
   for (auto _ : state) {
     ParallelFor(0, state.range(0), [&pointers, cnt = state.range(1)](size_t i) {
       volatile size_t y = 0;
-      auto p = pointers[i];
+      auto p = pointers[i].get();
       for (size_t i = 0; i != cnt; ++i) {
         y = *p;
       }
     });
-  }
-  for (auto &p : pointers) {
-    delete p;
   }
 #else
   static_assert(false, "Unsupported mode");
