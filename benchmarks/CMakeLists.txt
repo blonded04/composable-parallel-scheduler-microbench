@@ -17,7 +17,7 @@ foreach(bench IN LISTS BENCHMARKS)
     endforeach()
 endforeach()
 
-list(APPEND SPIN_PAYLOADS RELAX ATOMIC DISTRIBUTED_READ)
+list(APPEND SPIN_PAYLOADS RELAX ATOMIC DISTRIBUTED_READ THREADLOCAL)
 foreach(payload IN LISTS SPIN_PAYLOADS)
     foreach(mode IN LISTS MODES)
         string(TOLOWER ${payload} payload_lower)

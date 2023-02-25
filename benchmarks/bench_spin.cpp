@@ -7,15 +7,17 @@
 #define RELAX 1
 #define ATOMIC 2
 #define DISTRIBUTED_READ 3
+#define THREADLOCAL 4
 
 static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
 }
 
 namespace {
-struct AlignedAtomic {
-  alignas(64) std::atomic<int> value;
+template <typename T> struct Aligned {
+  alignas(hardware_constructive_interference_size) T value{};
 };
+
 } // namespace
 
 static void BM_Spin(benchmark::State &state) {
@@ -28,7 +30,7 @@ static void BM_Spin(benchmark::State &state) {
     });
   }
 #elif SPIN_PAYLOAD == ATOMIC
-  auto atomicPtr = std::make_unique<AlignedAtomic>();
+  auto atomicPtr = std::make_unique<Aligned<std::atomic<int>>>();
   for (auto _ : state) {
     ParallelFor(0, state.range(0),
                 [p = atomicPtr.get(), cnt = state.range(1)](size_t i) {
@@ -39,16 +41,26 @@ static void BM_Spin(benchmark::State &state) {
                 });
   }
 #elif SPIN_PAYLOAD == DISTRIBUTED_READ
-  std::vector<std::unique_ptr<int>> pointers(state.range(0));
+  std::vector<Aligned<std::unique_ptr<Aligned<int>>>> pointers(state.range(0));
   for (auto &p : pointers) {
-    p = std::make_unique<int>(0);
+    p = {std::make_unique<Aligned<int>>()};
   }
   for (auto _ : state) {
     ParallelFor(0, state.range(0), [&pointers, cnt = state.range(1)](size_t i) {
-      volatile size_t y = 0;
-      auto p = pointers[i].get();
+      volatile int y = 0;
+      auto p = pointers[i].value.get();
       for (size_t i = 0; i != cnt; ++i) {
-        y = *p;
+        y = p->value;
+      }
+    });
+  }
+#elif SPIN_PAYLOAD == THREADLOCAL
+  for (auto _ : state) {
+    ParallelFor(0, state.range(0), [cnt = state.range(1)](size_t i) {
+      static thread_local int x = 0;
+      volatile int y = 0;
+      for (size_t i = 0; i != cnt; ++i) {
+        y = x;
       }
     });
   }
@@ -64,6 +76,8 @@ inline std::string GetSpinPayload() {
   return "ATOMIC";
 #elif SPIN_PAYLOAD == DISTRIBUTED_READ
   return "DISTRIBUTED_READ";
+#elif SPIN_PAYLOAD == THREADLOCAL
+  return "THREADLOCAL";
 #else
   static_assert(false, "Unsupported mode");
 #endif
