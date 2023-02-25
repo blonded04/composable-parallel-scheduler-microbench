@@ -31,15 +31,23 @@ def save_figure(path, fig, name):
 
 # returns new plot
 def plot_benchmark(benchmarks, title, verbose):
-    benchmarks = sorted(benchmarks.items(), key=lambda x: x[1])
-    fig, axis = plt.subplots(2 if verbose else 1, 1, figsize=(16, 12))
-    min_time = sorted(benchmarks, key=lambda x: x[1])[0][1]
-    normal_axis = axis[0] if verbose else axis
-    normal_axis.barh(*zip(*[(name, min_time / time) for name, time in benchmarks]))
+    params_count = len(benchmarks)
+    fig, axis = plt.subplots(params_count * (2 if verbose else 1), 1, figsize=(16, params_count * 12))
+    iter = 0
+    for params, bench_results in benchmarks.items():
+        bench_results = sorted(bench_results.items(), key=lambda x: x[1])
+        min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
+        normal_axis = axis[2 * iter] if verbose else axis
+        normal_axis.barh(*zip(*[(name, min_time / time) for name, time in bench_results]))
+        if verbose:
+            params_str = ""
+            if params != "":
+                params_str = " with params " + params
+            axis[2 * iter + 1].barh(*zip(*bench_results))
+            axis[2 * iter].set_xlabel(title + params_str + ", normalized (higher is better)", fontsize=14)
+            axis[2 * iter + 1].set_xlabel(title + params_str + ", absolute time (lower is better), us", fontsize=14)
+        iter += 1
     if verbose:
-        axis[1].barh(*zip(*benchmarks))
-        axis[0].set_xlabel(title + ", normalized (higher is better)")
-        axis[1].set_xlabel(title + ", absolute time (lower is better), us")
         for ax in axis:
             ax.tick_params(axis='both', which='major', labelsize=14)
     else:
@@ -63,13 +71,10 @@ def parse_benchmarks(folder_name):
             if "benchmarks" in bench:
                 # TODO: take not only last bench
                 for res in bench["benchmarks"]:
-                    params = "_".join(x.group()[1:] for x in re.finditer(r'\/\w+:\d+', res["name"]))
-                    bench_type_with_params = bench_type
-                    if params != "":
-                        bench_type_with_params += "-" + params
-                    benchmarks_by_type.setdefault(bench_type_with_params, {})[bench_mode] = res["real_time"]
+                    params = ";".join(x.group()[1:] for x in re.finditer(r'\/\w+:\d+', res["name"]))
+                    benchmarks_by_type.setdefault(bench_type, {}).setdefault(params, {})[bench_mode] = res["real_time"]
             else:
-                benchmarks_by_type.setdefault(bench_type, {})[bench_mode] = bench
+                benchmarks_by_type.setdefault(bench_type, {}).setdefault("", {})[bench_mode] = bench
     return benchmarks_by_type
 
 
@@ -230,7 +235,7 @@ if __name__ == "__main__":
         benchmarks = parse_benchmarks(os.path.join(folder_name, subdir))
         if subdir == "scheduling_dist":
             scheduling_times_by_suffix = {}
-            for bench_mode, res in benchmarks["scheduling_dist"].items():
+            for bench_mode, res in benchmarks["scheduling_dist"][""].items():
                 bench_mode, measure_mode = bench_mode.rsplit("_", 1)
                 if measure_mode not in scheduling_times_by_suffix:
                     scheduling_times_by_suffix[measure_mode] = {}
@@ -254,7 +259,7 @@ if __name__ == "__main__":
                 os.makedirs(current_res_path)
             with Pool() as pool:
                 # call the function for each item in parallel
-                pool.map(partial(plot_scheduling_dist_item, res_path=current_res_path, verbose=verbose), benchmarks["scheduling_dist"].items())
+                pool.map(partial(plot_scheduling_dist_item, res_path=current_res_path, verbose=verbose), benchmarks["scheduling_dist"][""].items())
 
         else:
             current_res_path = os.path.join(res_path, subdir)
