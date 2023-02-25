@@ -69,7 +69,7 @@ static void BM_Spin(benchmark::State &state) {
 #endif
 }
 
-inline std::string GetSpinPayload() {
+static std::string GetSpinPayload() {
 #if SPIN_PAYLOAD == RELAX
   return "RELAX";
 #elif SPIN_PAYLOAD == ATOMIC
@@ -83,16 +83,25 @@ inline std::string GetSpinPayload() {
 #endif
 }
 
+static constexpr size_t ScaleIterations(size_t count) {
+  constexpr size_t movPerRelax = 32; // TODO: tune for arm
+#if SPIN_PAYLOAD == RELAX
+  return count;
+#else
+  return count * movPerRelax;
+#endif
+}
+
 BENCHMARK(BM_Spin)
     ->Name(std::string("Spin_") + GetSpinPayload() + "_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
     ->ArgNames({"tasks", "iters"})
-    ->Args({1 << 10, 1 << 10})         // few small tasks
-    ->Args({GetNumThreads(), 1 << 20}) // few big tasks
-    ->Args({1 << 13, 1 << 13})         // something in between
-    ->Args({1 << 16, 1 << 10})         // many small tasks
+    ->Args({1 << 10, ScaleIterations(1 << 10)})         // few small tasks
+    ->Args({GetNumThreads(), ScaleIterations(1 << 20)}) // few big tasks
+    ->Args({1 << 13, ScaleIterations(1 << 13)})         // something in between
+    ->Args({1 << 16, ScaleIterations(1 << 10)})         // many small tasks
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
