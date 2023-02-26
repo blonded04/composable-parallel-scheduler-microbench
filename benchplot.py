@@ -32,26 +32,28 @@ def save_figure(path, fig, name):
 # returns new plot
 def plot_benchmark(benchmarks, title, verbose):
     params_count = len(benchmarks)
-    fig, axis = plt.subplots(params_count * (2 if verbose else 1), 1, figsize=(16, params_count * 12))
+    fig, axis = plt.subplots(params_count, 2 if verbose else 1, figsize=(36 if verbose else 16, params_count * 6), squeeze=False)
     iter = 0
     for params, bench_results in benchmarks.items():
         bench_results = sorted(bench_results.items(), key=lambda x: x[1])
         min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
-        normal_axis = axis[2 * iter] if verbose else axis
-        normal_axis.barh(*zip(*[(name, min_time / time) for name, time in bench_results]))
+        axis[iter][0].barh(*zip(*[(name, min_time / time) for name, time in bench_results]))
         if verbose:
             params_str = ""
             if params != "":
                 params_str = " with params " + params
-            axis[2 * iter + 1].barh(*zip(*bench_results))
-            axis[2 * iter].set_xlabel(title + params_str + ", normalized (higher is better)", fontsize=14)
-            axis[2 * iter + 1].set_xlabel(title + params_str + ", absolute time (lower is better), us", fontsize=14)
+            axis[iter][1].barh(*zip(*bench_results))
+            axis[iter][0].set_xlabel(title + params_str + ", normalized (higher is better)", fontsize=14)
+            axis[iter][1].set_xlabel(title + params_str + ", absolute time (lower is better), us", fontsize=14)
         iter += 1
-    if verbose:
-        for ax in axis:
-            ax.tick_params(axis='both', which='major', labelsize=14)
-    else:
-        axis.tick_params(axis='both', which='major', labelsize=20)
+
+    for axs in axis:
+        for ax in axs:
+            if verbose:
+                ax.tick_params(axis='both', which='major', labelsize=14)
+                fig.tight_layout()
+            else:
+                ax.tick_params(axis='both', which='major', labelsize=20)
     return fig
 
 
