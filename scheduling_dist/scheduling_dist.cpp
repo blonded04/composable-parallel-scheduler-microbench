@@ -12,16 +12,24 @@
 
 namespace {
 using ThreadId = int;
+
+struct Trace {
+  Timestamp Start{};
+  Timestamp ExecutionStart{};
+  Timestamp ExecutionEnd{};
+  Timestamp End{};
+};
+
 struct ScheduledTask {
   size_t TaskIdx;
   ThreadId Id;
   int SchedCpu;
-  Timestamp Time;
+  Trace Trace;
 
   ScheduledTask() = default;
 
   ScheduledTask(size_t taskIdx, Timestamp start) {
-    Time = Now() - start; // do it first to avoid overhead of other fields
+    Trace = {.Start = start, .ExecutionStart = Now()};
     TaskIdx = taskIdx;
     Id = GetThreadIndex();
     SchedCpu = sched_getcpu();
@@ -43,7 +51,12 @@ static std::vector<ScheduledTask> RunWithBarrier(size_t threadNum) {
     while (reported.load(std::memory_order_relaxed) != threadNum) {
       CpuRelax();
     }
+    results[i].Trace.ExecutionEnd = Now();
   });
+  auto end = Now();
+  for (auto &&task : results) {
+    task.Trace.End = end;
+  }
   return results;
 }
 
@@ -59,7 +72,12 @@ static std::vector<ScheduledTask> RunWithSpin(size_t threadNum,
     for (size_t i = 0; i < spinPerIter; ++i) {
       CpuRelax();
     }
+    results[i].Trace.ExecutionEnd = Now();
   });
+  auto end = Now();
+  for (auto &&task : results) {
+    task.Trace.End = end;
+  }
   return results;
 }
 
@@ -110,8 +128,11 @@ PrintResults(size_t threadNum,
       for (size_t i = 0; i != tasks.size(); ++i) {
         auto task = tasks[i];
         std::cout << "{\"index\": " << task.TaskIdx
-                  << ", \"time\": " << task.Time
-                  << ", \"cpu\": " << task.SchedCpu << "}"
+                  << ", \"trace\": {\"start\": " << task.Trace.Start
+                  << ", \"execution_start\": " << task.Trace.ExecutionStart
+                  << ", \"execution_end\": " << task.Trace.ExecutionEnd
+                  << ", \"end\": " << task.Trace.End
+                  << "}, \"cpu\": " << task.SchedCpu << "}"
                   << (i == tasks.size() - 1 ? "" : ", ");
       }
       std::cout << (++total == resultPerThread.size() ? " ]" : "],")
