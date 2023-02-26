@@ -49,7 +49,7 @@ find_package(OpenMP REQUIRED)
 FetchContent_Declare(
   onetbb
   GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
-  GIT_TAG v2021.6.0
+  GIT_TAG v2021.8.0
 )
 option(TBB_TEST OFF)
 FetchContent_MakeAvailable(onetbb)
