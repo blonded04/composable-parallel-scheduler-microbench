@@ -128,10 +128,13 @@ PrintResults(size_t threadNum,
       for (size_t i = 0; i != tasks.size(); ++i) {
         auto task = tasks[i];
         std::cout << "{\"index\": " << task.TaskIdx
-                  << ", \"trace\": {\"start\": " << task.Trace.Start
-                  << ", \"execution_start\": " << task.Trace.ExecutionStart
-                  << ", \"execution_end\": " << task.Trace.ExecutionEnd
-                  << ", \"end\": " << task.Trace.End
+                  << ", \"trace\": {\"start_timestamp\": " << task.Trace.Start
+                  << ", \"scheduling_stage\": "
+                  << task.Trace.ExecutionStart - task.Trace.Start
+                  << ", \"execution_stage\": "
+                  << task.Trace.ExecutionEnd - task.Trace.ExecutionStart
+                  << ", \"end_stage\": "
+                  << task.Trace.End - task.Trace.ExecutionEnd
                   << "}, \"cpu\": " << task.SchedCpu << "}"
                   << (i == tasks.size() - 1 ? "" : ", ");
       }
