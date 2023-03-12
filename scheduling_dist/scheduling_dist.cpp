@@ -1,5 +1,7 @@
 #include "../include/parallel_for.h"
 
+#include "../include/trace.h"
+
 #include <atomic>
 #include <chrono>
 #include <iostream>
@@ -10,78 +12,49 @@
 #define BARRIER 2
 #define RUNNING 3
 
-namespace {
-using ThreadId = int;
-
-struct Trace {
-  Timestamp Start{};
-  Timestamp ExecutionStart{};
-  Timestamp ExecutionEnd{};
-  Timestamp End{};
-};
-
-struct ScheduledTask {
-  size_t TaskIdx;
-  ThreadId Id;
-  int SchedCpu;
-  Trace Trace;
-
-  ScheduledTask() = default;
-
-  ScheduledTask(size_t taskIdx, Timestamp start) {
-    Trace = {.Start = start, .ExecutionStart = Now()};
-    TaskIdx = taskIdx;
-    Id = GetThreadIndex();
-    SchedCpu = sched_getcpu();
-  }
-
-  bool operator<(const ScheduledTask &other) { return TaskIdx < other.TaskIdx; }
-};
-} // namespace
-
-static std::vector<ScheduledTask> RunWithBarrier(size_t threadNum) {
+static std::vector<Tracing::TaskInfo> RunWithBarrier(size_t threadNum) {
   std::atomic<size_t> reported(0);
-  std::vector<ScheduledTask> results(threadNum);
+  std::vector<Tracing::TaskInfo> results(threadNum);
   auto start = Now();
   ParallelFor(0, threadNum, [&](size_t i) {
-    results[i] = ScheduledTask(i, start);
+    results[i] = Tracing::TaskInfo(i, start);
     reported.fetch_add(1, std::memory_order_relaxed);
     // it's ok to block here because we want
     // to measure time of all threadNum threads
     while (reported.load(std::memory_order_relaxed) != threadNum) {
       CpuRelax();
     }
-    results[i].Trace.ExecutionEnd = Now();
+    results[i].Trace.OnExecuted();
   });
-  auto end = Now();
-  for (auto &&task : results) {
-    task.Trace.End = end;
-  }
+  // auto end = Now();
+  // for (auto &&task : results) {
+  //   task.Trace.
+  // }
   return results;
 }
 
-static std::vector<ScheduledTask> RunWithSpin(size_t threadNum,
-                                              size_t tasksPerThread = 1) {
+static std::vector<Tracing::TaskInfo> RunWithSpin(size_t threadNum,
+                                                  size_t tasksPerThread = 1) {
   uint64_t spinPerIter = 100'000'000 / tasksPerThread;
   auto tasksCount = threadNum * tasksPerThread;
-  std::vector<ScheduledTask> results(tasksCount);
+  std::vector<Tracing::TaskInfo> results(tasksCount);
   auto start = Now();
   ParallelFor(0, tasksCount, [&](size_t i) {
-    results[i] = ScheduledTask(i, start);
+    results[i] = Tracing::TaskInfo(i, start);
     // emulating work
     for (size_t i = 0; i < spinPerIter; ++i) {
       CpuRelax();
     }
-    results[i].Trace.ExecutionEnd = Now();
+    results[i].Trace.OnExecuted();
   });
-  auto end = Now();
-  for (auto &&task : results) {
-    task.Trace.End = end;
-  }
+  // auto end = Now();
+  // for (auto &&task : results) {
+  //   task.Trace.End = end;
+  // }
   return results;
 }
 
-static std::vector<ScheduledTask> RunOnce(size_t threadNum) {
+static std::vector<Tracing::TaskInfo> RunOnce(size_t threadNum) {
 #if defined(__x86_64__)
   asm volatile("mfence" ::: "memory");
 #elif defined(__aarch64__)
@@ -108,17 +81,18 @@ static std::vector<ScheduledTask> RunOnce(size_t threadNum) {
 
 static void
 PrintResults(size_t threadNum,
-             const std::vector<std::vector<ScheduledTask>> &results) {
+             const std::vector<std::vector<Tracing::TaskInfo>> &results) {
   std::cout << "{" << std::endl;
   std::cout << "\"thread_num\": " << threadNum << "," << std::endl;
   std::cout << "\"tasks_num\": " << results[0].size() << "," << std::endl;
   std::cout << "\"results\": [" << std::endl;
   for (size_t iter = 0; iter != results.size(); ++iter) {
     auto &&res = results[iter];
-    std::unordered_map<ThreadId, std::vector<ScheduledTask>> resultPerThread;
+    std::unordered_map<ThreadId, std::vector<Tracing::TaskInfo>>
+        resultPerThread;
     for (size_t i = 0; i < res.size(); ++i) {
       auto task = res[i];
-      resultPerThread[task.Id].emplace_back(task);
+      resultPerThread[task.TaskIdx].emplace_back(task);
     }
     std::cout << "  {" << std::endl;
     size_t total = 0;
@@ -128,13 +102,13 @@ PrintResults(size_t threadNum,
       for (size_t i = 0; i != tasks.size(); ++i) {
         auto task = tasks[i];
         std::cout << "{\"index\": " << task.TaskIdx
-                  << ", \"trace\": {\"start_timestamp\": " << task.Trace.Start
+                  << ", \"trace\": {\"start_timestamp\": " << task.Trace.Created
                   << ", \"scheduling_stage\": "
-                  << task.Trace.ExecutionStart - task.Trace.Start
+                  << task.Trace.ExecutionStart - task.Trace.Created
                   << ", \"execution_stage\": "
                   << task.Trace.ExecutionEnd - task.Trace.ExecutionStart
-                  << ", \"end_stage\": "
-                  << task.Trace.End - task.Trace.ExecutionEnd
+                  //<< ", \"end_stage\": "
+                  // << task.Trace.End - task.Trace.ExecutionEnd
                   << "}, \"cpu\": " << task.SchedCpu << "}"
                   << (i == tasks.size() - 1 ? "" : ", ");
       }
@@ -152,7 +126,7 @@ int main(int argc, char **argv) {
   InitParallel(threadNum);
   RunOnce(threadNum); // just for warmup
 
-  std::vector<std::vector<ScheduledTask>> results;
+  std::vector<std::vector<Tracing::TaskInfo>> results;
   for (size_t i = 0; i < 10; ++i) {
     results.push_back(RunOnce(threadNum));
   }

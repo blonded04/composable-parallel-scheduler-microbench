@@ -3,23 +3,34 @@
 #include "modes.h"
 #include "num_threads.h"
 #include <iostream>
+#include <sched.h>
 #include <string>
 
 #include <cstddef>
 #include <thread>
 
-inline int GetThreadIndex() {
+using ThreadId = int;
+
+inline ThreadId GetThreadIndex() {
+  thread_local static int id = [] {
 #if defined(TBB_MODE)
-  return tbb::this_task_arena::current_thread_index();
+    return tbb::this_task_arena::current_thread_index();
 #elif defined(OMP_MODE)
-  return omp_get_thread_num();
+    return omp_get_thread_num();
 #elif defined(SERIAL)
-  return 0;
+    return 0;
 #elif defined(EIGEN_MODE)
-  return EigenPool.CurrentThreadId();
+    return EigenPool.CurrentThreadId();
 #else
 #error "Unsupported mode"
 #endif
+  }();
+  return id;
+}
+
+inline int GetCpuIndex() {
+  thread_local static int id = sched_getcpu();
+  return id;
 }
 
 using Timestamp = uint64_t;
@@ -73,9 +84,9 @@ inline void PinThread(size_t slot_number) {
 }
 
 #ifdef __cpp_lib_hardware_interference_size
-    using std::hardware_constructive_interference_size;
-    using std::hardware_destructive_interference_size;
+using std::hardware_constructive_interference_size;
+using std::hardware_destructive_interference_size;
 #else
-    constexpr std::size_t hardware_constructive_interference_size = 64;
-    constexpr std::size_t hardware_destructive_interference_size = 64;
+constexpr std::size_t hardware_constructive_interference_size = 64;
+constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
