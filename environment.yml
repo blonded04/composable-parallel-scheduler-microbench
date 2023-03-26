@@ -16,6 +16,8 @@ dependencies:
   - matplotlib
   - numpy
   - seaborn
+  - pandas
+  - ipykernel
   # - libclang-cpp
   # - libcxx
   # - libstdcxx-ng

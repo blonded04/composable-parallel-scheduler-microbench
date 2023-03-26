@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -12,49 +13,31 @@
 #define BARRIER 2
 #define RUNNING 3
 
-static std::vector<Tracing::TaskInfo> RunWithBarrier(size_t threadNum) {
+static void RunWithBarrier(size_t threadNum, Tracing::Tracer &tracer) {
   std::atomic<size_t> reported(0);
-  std::vector<Tracing::TaskInfo> results(threadNum);
-  auto start = Now();
-  ParallelFor(0, threadNum, [&](size_t i) {
-    results[i] = Tracing::TaskInfo(i, start);
+  tracer.RunIteration(threadNum, [&](size_t i) {
     reported.fetch_add(1, std::memory_order_relaxed);
     // it's ok to block here because we want
     // to measure time of all threadNum threads
     while (reported.load(std::memory_order_relaxed) != threadNum) {
       CpuRelax();
     }
-    results[i].Trace.OnExecuted();
   });
-  // auto end = Now();
-  // for (auto &&task : results) {
-  //   task.Trace.
-  // }
-  return results;
 }
 
-static std::vector<Tracing::TaskInfo> RunWithSpin(size_t threadNum,
-                                                  size_t tasksPerThread = 1) {
+static void RunWithSpin(size_t threadNum, Tracing::Tracer &tracer,
+                        size_t tasksPerThread = 1) {
   uint64_t spinPerIter = 100'000'000 / tasksPerThread;
   auto tasksCount = threadNum * tasksPerThread;
-  std::vector<Tracing::TaskInfo> results(tasksCount);
-  auto start = Now();
-  ParallelFor(0, tasksCount, [&](size_t i) {
-    results[i] = Tracing::TaskInfo(i, start);
+  tracer.RunIteration(tasksCount, [&](size_t i) {
     // emulating work
     for (size_t i = 0; i < spinPerIter; ++i) {
       CpuRelax();
     }
-    results[i].Trace.OnExecuted();
   });
-  // auto end = Now();
-  // for (auto &&task : results) {
-  //   task.Trace.End = end;
-  // }
-  return results;
 }
 
-static std::vector<Tracing::TaskInfo> RunOnce(size_t threadNum) {
+static void RunOnce(size_t threadNum, Tracing::Tracer &tracer) {
 #if defined(__x86_64__)
   asm volatile("mfence" ::: "memory");
 #elif defined(__aarch64__)
@@ -69,67 +52,24 @@ static std::vector<Tracing::TaskInfo> RunOnce(size_t threadNum) {
 #endif
 
 #if SCHEDULING_MEASURE_MODE == BARRIER
-  return RunWithBarrier(threadNum);
+  return RunWithBarrier(threadNum, tracer);
 #elif SCHEDULING_MEASURE_MODE == SPIN
-  return RunWithSpin(threadNum);
+  return RunWithSpin(threadNum, tracer);
 #elif SCHEDULING_MEASURE_MODE == MULTITASK
-  return RunWithSpin(threadNum, 100);
+  return RunWithSpin(threadNum, tracer, 100);
 #else
   static_assert(false, "Unsupported mode");
 #endif
 }
 
-static void
-PrintResults(size_t threadNum,
-             const std::vector<std::vector<Tracing::TaskInfo>> &results) {
-  std::cout << "{" << std::endl;
-  std::cout << "\"thread_num\": " << threadNum << "," << std::endl;
-  std::cout << "\"tasks_num\": " << results[0].size() << "," << std::endl;
-  std::cout << "\"results\": [" << std::endl;
-  for (size_t iter = 0; iter != results.size(); ++iter) {
-    auto &&res = results[iter];
-    std::unordered_map<ThreadId, std::vector<Tracing::TaskInfo>>
-        resultPerThread;
-    for (size_t i = 0; i < res.size(); ++i) {
-      auto task = res[i];
-      resultPerThread[task.TaskIdx].emplace_back(task);
-    }
-    std::cout << "  {" << std::endl;
-    size_t total = 0;
-    for (auto &&[id, tasks] : resultPerThread) {
-      std::cout << "    \"" << id << "\": [";
-      std::sort(tasks.begin(), tasks.end());
-      for (size_t i = 0; i != tasks.size(); ++i) {
-        auto task = tasks[i];
-        std::cout << "{\"index\": " << task.TaskIdx
-                  << ", \"trace\": {\"start_timestamp\": " << task.Trace.Created
-                  << ", \"scheduling_stage\": "
-                  << task.Trace.ExecutionStart - task.Trace.Created
-                  << ", \"execution_stage\": "
-                  << task.Trace.ExecutionEnd - task.Trace.ExecutionStart
-                  //<< ", \"end_stage\": "
-                  // << task.Trace.End - task.Trace.ExecutionEnd
-                  << "}, \"cpu\": " << task.SchedCpu << "}"
-                  << (i == tasks.size() - 1 ? "" : ", ");
-      }
-      std::cout << (++total == resultPerThread.size() ? " ]" : "],")
-                << std::endl;
-    }
-    std::cout << (iter + 1 == results.size() ? "  }" : "  },") << std::endl;
-  }
-  std::cout << "]" << std::endl;
-  std::cout << "}" << std::endl;
-}
-
 int main(int argc, char **argv) {
   auto threadNum = GetNumThreads();
   InitParallel(threadNum);
-  RunOnce(threadNum); // just for warmup
 
-  std::vector<std::vector<Tracing::TaskInfo>> results;
+  Tracing::Tracer tracer;
   for (size_t i = 0; i < 10; ++i) {
-    results.push_back(RunOnce(threadNum));
+    RunOnce(threadNum, tracer);
   }
-  PrintResults(threadNum, results);
+  std::cout << tracer.ToJson(threadNum);
   return 0;
 }
