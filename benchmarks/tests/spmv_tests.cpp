@@ -5,11 +5,8 @@ using namespace SPMV;
 
 TEST(ParallelFor, SpmvTestUnbalanced) {
   // todo: gen dense matrix
-  DenseMatrix<uint64_t> dense;
-  dense.Dimensions = {1 << 10, 1 << 10};
-  dense.Data.resize(dense.Dimensions.Rows);
+  DenseMatrix<uint64_t> dense(1 << 10, 1 << 10);
   for (size_t i = 0; i != dense.Dimensions.Rows; ++i) {
-    dense.Data[i].resize(dense.Dimensions.Columns);
     for (size_t j = 0; j != dense.Dimensions.Columns; ++j) {
       dense.Data[i][j] = i + j;
     }

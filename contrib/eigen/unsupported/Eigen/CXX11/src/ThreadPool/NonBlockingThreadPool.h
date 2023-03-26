@@ -9,7 +9,7 @@
 
 #ifndef EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
 #define EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
-#define EIGEN_POOL_RUNNEXT
+// #define EIGEN_POOL_RUNNEXT
 
 #include <atomic>
 #include "./InternalHeaderCheck.h"
@@ -28,17 +28,16 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
       : env_(env),
         num_threads_(num_threads),
         allow_spinning_(allow_spinning),
-        use_main_thread_(use_main_thread),
         thread_data_(num_threads),
         all_coprimes_(num_threads),
-        waiters_(num_threads - use_main_thread_),
+        waiters_(num_threads - 1),
         global_steal_partition_(EncodePartition(0, num_threads_)),
         blocked_(0),
         spinning_(0),
         done_(false),
         cancelled_(false),
         ec_(waiters_) {
-    waiters_.resize(num_threads_ - use_main_thread_);
+    waiters_.resize(num_threads_ - 1);
     // Calculate coprimes of all numbers [1, num_threads].
     // Coprimes are used for random walks over all threads in Steal
     // and NonEmptyQueueIndex. Iteration is based on the fact that if we take
@@ -54,8 +53,19 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
     thread_data_.resize(num_threads_);
     for (int i = 0; i < num_threads_; i++) {
       SetStealPartition(i, EncodePartition(0, num_threads_));
-      if (i >= use_main_thread_) {
-        thread_data_[i].thread.reset(env_.CreateThread([this, i]() { WorkerLoop(i); }));
+      if (i == 0) {
+        PerThread* pt = GetPerThread();
+        pt->pool = this;
+        pt->rand = GlobalThreadIdHash();
+        pt->thread_id = i;
+      } else {
+        thread_data_[i].thread.reset(env_.CreateThread([this, i]() {
+          PerThread* pt = GetPerThread();
+          pt->pool = this;
+          pt->rand = GlobalThreadIdHash();
+          pt->thread_id = i;
+          WorkerLoop();
+        }));
       }
     }
   }
@@ -175,11 +185,7 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
     }
   }
 
-  void JoinMainThread() {
-    if (use_main_thread_) {
-      WorkerLoop(0);
-    }
-  }
+  void JoinMainThread() { WorkerLoop(/* external */ true); }
 
  private:
   // Create a single atomic<int> that encodes start and limit information for
@@ -248,7 +254,6 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
   Environment env_;
   const int num_threads_;
   const bool allow_spinning_;
-  const bool use_main_thread_;
   MaxSizeVector<ThreadData> thread_data_;
   MaxSizeVector<MaxSizeVector<unsigned>> all_coprimes_;
   MaxSizeVector<EventCount::Waiter> waiters_;
@@ -260,88 +265,40 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
   EventCount ec_;
 
   // Main worker thread loop.
-  void WorkerLoop(int thread_id) {
+  void WorkerLoop(bool external = false) {
     // TODO: init in constructor?
     PerThread* pt = GetPerThread();
-    pt->pool = this;
-    pt->rand = GlobalThreadIdHash();
-    pt->thread_id = thread_id;
+    auto thread_id = pt->thread_id;
     Queue& q = thread_data_[thread_id].queue;
-    EventCount::Waiter* waiter = nullptr;
-    if (!use_main_thread_ || thread_id != 0) {
-      // main thread does not need a waiter
-      waiter = &waiters_[thread_id - use_main_thread_];
-    }
-    // TODO(dvyukov,rmlarsen): The time spent in NonEmptyQueueIndex() is
-    // proportional to num_threads_ and we assume that new work is scheduled at
-    // a constant rate, so we set spin_count to 5000 / num_threads_. The
-    // constant was picked based on a fair dice roll, tune it.
-    const int spin_count = allow_spinning_ && num_threads_ > 0 ? 5000 / num_threads_ : 0;
-    if (num_threads_ == 1) {
-      // For num_threads_ == 1 there is no point in going through the expensive
-      // steal loop. Moreover, since NonEmptyQueueIndex() calls PopBack() on the
-      // victim queues it might reverse the order in which ops are executed
-      // compared to the order in which they are scheduled, which tends to be
-      // counter-productive for the types of I/O workloads the single thread
-      // pools tend to be used for.
-      while (!cancelled_) {
-        Task t;
+    while (!cancelled_) {
+      Task t;
 #ifdef EIGEN_POOL_RUNNEXT
-        auto p = thread_data_[thread_id].runnext.load(std::memory_order_relaxed);
-        if (p) {
-          auto success = thread_data_[thread_id].runnext.compare_exchange_strong(p, nullptr, std::memory_order_acquire);
-          if (success) {
-            t = std::move(*p);
-            delete p;
-          }
-        }
-#endif
-        if (!t.f) {
-          t = q.PopFront();
-        }
-        for (int i = 0; i < spin_count && !t.f; i++) {
-          if (!cancelled_.load(std::memory_order_relaxed)) {
-            t = q.PopFront();
-          }
-        }
-        if (!t.f) {
-          if (!WaitForWork(waiter, &t)) {
-            return;
-          }
-        }
-        if (t.f) {
-          env_.ExecuteTask(t);
+      auto p = thread_data_[thread_id].runnext.load(std::memory_order_relaxed);
+      if (p) {
+        auto success = thread_data_[thread_id].runnext.compare_exchange_strong(p, nullptr, std::memory_order_relaxed);
+        if (success) {
+          t = std::move(*p);
+          delete p;
         }
       }
-    } else {
-      while (!cancelled_) {
-        Task t;
-        auto p = thread_data_[thread_id].runnext.load(std::memory_order_relaxed);
-        if (p) {
-          auto success = thread_data_[thread_id].runnext.compare_exchange_strong(p, nullptr, std::memory_order_relaxed);
-          if (success) {
-            t = std::move(*p);
-            delete p;
-          }
-        }
-        if (!t.f) {
-          t = q.PopFront();
-        }
-        if (!t.f) {
-          t = LocalSteal();
-        }
-        if (!t.f) {
-          t = GlobalSteal();
-        }
-        if (!t.f && use_main_thread_ && thread_id == 0) {
-          // Main thread shouldn't wait for work, it should just exit.
-          return;
-        }
-        if (t.f) {
-          env_.ExecuteTask(t);
-        } else if (done_) {
-          return;
-        }
+#endif
+      if (!t.f) {
+        t = q.PopFront();
+      }
+      if (!t.f) {
+        t = LocalSteal();
+      }
+      if (!t.f) {
+        t = GlobalSteal();
+      }
+      if (!t.f && external) {
+        // external thread shouldn't wait for work, it should just exit.
+        return;
+      }
+      if (t.f) {
+        env_.ExecuteTask(t);
+      } else if (done_) {
+        return;
       }
     }
   }
@@ -414,7 +371,7 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
     // that's we are done.
     blocked_++;
     // TODO is blocked_ required to be unsigned?
-    if (done_ && blocked_ == static_cast<unsigned>(num_threads_ - use_main_thread_)) {
+    if (done_ && blocked_ == static_cast<unsigned>(num_threads_ - 1)) {
       ec_.CancelWait();
       // Almost done, but need to re-check queues.
       // Consider that all queues are empty and all worker threads are preempted

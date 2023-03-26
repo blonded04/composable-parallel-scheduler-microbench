@@ -16,6 +16,9 @@ struct MatrixDimensions {
 };
 
 template <typename T> struct DenseMatrix {
+  DenseMatrix(size_t n, size_t m)
+      : Dimensions{n, m}, Data(n, std::vector<T>(m)) {}
+
   MatrixDimensions Dimensions;
   std::vector<std::vector<T>> Data;
 };
@@ -55,6 +58,30 @@ void MultiplyMatrix(const SPMV::DenseMatrix<T> &A, const std::vector<T> &x,
         for (size_t j = 0; j != A.Dimensions.Columns; ++j) {
           out[i] += A.Data[i][j] * x[j];
         }
+      },
+      grainSize);
+}
+template <typename T>
+void MultiplyMatrix(const SPMV::DenseMatrix<T> &A,
+                    const SPMV::DenseMatrix<T> &B, SPMV::DenseMatrix<T> &out,
+                    size_t grainSize = 1) {
+  if (out.Dimensions.Rows != A.Dimensions.Rows ||
+      out.Dimensions.Columns != B.Dimensions.Columns) {
+    out = SPMV::DenseMatrix<T>(A.Dimensions.Rows, B.Dimensions.Columns);
+  }
+  ParallelFor(
+      0, out.Dimensions.Rows,
+      [&](size_t row) {
+        ParallelFor(
+            0, out.Dimensions.Columns,
+            [&](size_t col) {
+              T sum{};
+              for (size_t j = 0; j != A.Dimensions.Columns; ++j) {
+                sum += A.Data[row][j] * B.Data[j][col];
+              }
+              out.Data[row][col] = sum;
+            },
+            grainSize);
       },
       grainSize);
 }
@@ -174,6 +201,18 @@ template <typename T> std::vector<T> GenVector(size_t m) {
     }
   }
   return x;
+}
+
+template <typename T> DenseMatrix<T> GenDenseMatrix(size_t rows, size_t cols) {
+  DenseMatrix<T> out(rows, cols);
+  auto valueGen = std::uniform_real_distribution<T>(-1e9, 1e9);
+
+  for (auto &row : out.Data) {
+    for (auto &el : row) {
+      el = valueGen(RandomGenerator);
+    }
+  }
+  return out;
 }
 
 inline constexpr size_t MATRIX_SIZE = 1 << 14;
