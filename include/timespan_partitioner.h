@@ -1,5 +1,4 @@
 #pragma once
-#include "../contrib/eigen/unsupported/Eigen/CXX11/ThreadPool"
 #include "num_threads.h"
 #include "poor_barrier.h"
 #include "util.h"
@@ -8,6 +7,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <memory>
 #include <utility>
 
 namespace EigenPartitioner {
@@ -58,8 +58,9 @@ template <typename Scheduler, typename Func, bool DelayBalance,
 struct Task {
 
   static constexpr uint64_t INIT_TIME = [] {
-    // should be calculated using timespan_tuner with EIGEN_SIMPLE
-    // currently 0.99 percentile for maximums is used: 99% of iterations should fit scheduling in timespan
+  // should be calculated using timespan_tuner with EIGEN_SIMPLE
+  // currently 0.99 percentile for maximums is used: 99% of iterations should
+  // fit scheduling in timespan
 #if defined(__x86_64__)
     return 17000;
 #elif defined(__aarch64__)

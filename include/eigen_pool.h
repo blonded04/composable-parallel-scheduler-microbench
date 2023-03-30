@@ -5,9 +5,7 @@
 #ifdef EIGEN_MODE
 
 #define EIGEN_USE_THREADS
-#include "../contrib/eigen/unsupported/Eigen/CXX11/Tensor"
-#include "../contrib/eigen/unsupported/Eigen/CXX11/TensorSymmetry"
-#include "../contrib/eigen/unsupported/Eigen/CXX11/ThreadPool"
+#include "eigen/nonblocking_thread_pool.h"
 
 #if EIGEN_MODE == EIGEN_RAPID
 inline auto EigenPool =
