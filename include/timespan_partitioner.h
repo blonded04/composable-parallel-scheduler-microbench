@@ -63,7 +63,7 @@ struct Task {
 #if defined(__x86_64__)
     return 17000;
 #elif defined(__aarch64__)
-    retur 200;
+    return 9000;
 #else
 #error "Unsupported architecture
 #endif
