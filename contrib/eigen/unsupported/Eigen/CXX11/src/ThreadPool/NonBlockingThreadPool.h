@@ -9,7 +9,7 @@
 
 #ifndef EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
 #define EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
-// #define EIGEN_POOL_RUNNEXT
+#define EIGEN_POOL_RUNNEXT
 
 #include <atomic>
 #include "./InternalHeaderCheck.h"
@@ -111,16 +111,15 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
   void RunOnThread(std::function<void()> fn, size_t threadIndex) {
     threadIndex = threadIndex % num_threads_;
     Task t = env_.CreateTask(std::move(fn));
-#ifdef EIGEN_POOL_RUNNEXT
     auto p = new Task(std::move(t));
+#ifdef EIGEN_POOL_RUNNEXT
     Task* expected = nullptr;
     if (thread_data_[threadIndex].runnext.compare_exchange_strong(expected, p, std::memory_order_release)) {
       return;
     }
-    t = std::move(*p);
 #endif
     Queue& q = thread_data_[threadIndex].queue;
-    t = q.PushBack(std::move(t));
+    t = q.PushBack(std::move(*p));
     if (t.f) {
       // failed to push, execute directly
       env_.ExecuteTask(t);
@@ -244,7 +243,7 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
   };
 
   struct ThreadData {
-    constexpr ThreadData() : thread(), steal_partition(0), queue() {}
+    constexpr ThreadData() : thread(), steal_partition(0), queue(), runnext(nullptr) {}
     std::unique_ptr<Thread> thread;
     std::atomic<unsigned> steal_partition;
     Queue queue;
@@ -275,7 +274,7 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
 #ifdef EIGEN_POOL_RUNNEXT
       auto p = thread_data_[thread_id].runnext.load(std::memory_order_relaxed);
       if (p) {
-        auto success = thread_data_[thread_id].runnext.compare_exchange_strong(p, nullptr, std::memory_order_relaxed);
+        auto success = thread_data_[thread_id].runnext.compare_exchange_strong(p, nullptr, std::memory_order_acquire);
         if (success) {
           t = std::move(*p);
           delete p;
@@ -327,6 +326,24 @@ class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
         victim -= size;
       }
     }
+    #ifdef EIGEN_POOL_RUNNEXT
+    for (unsigned i = 0; i < size; i++) {
+      auto p = thread_data_[start + victim].runnext.load(std::memory_order_relaxed);
+      if (p) {
+        auto success =
+            thread_data_[start + victim].runnext.compare_exchange_strong(p, nullptr, std::memory_order_acquire);
+        if (success) {
+          Task t = std::move(*p);
+          delete p;
+          return t;
+        }
+      }
+      victim += inc;
+      if (victim >= size) {
+        victim -= size;
+      }
+    }
+    #endif
     return Task();
   }
 
