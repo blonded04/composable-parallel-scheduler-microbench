@@ -53,8 +53,14 @@ struct TaskNode {
   std::atomic<size_t> ChildWaitingSteal_{0};
 };
 
-template <typename Scheduler, typename Func, bool DelayBalance,
-          bool Initial = false>
+enum class DelayBalance { TRUE, FALSE };
+
+enum class Balance { TRUE, FALSE };
+
+enum class Initial { TRUE, FALSE };
+
+template <typename Scheduler, typename Func, Balance balance,
+          DelayBalance delayBalance, Initial initial = Initial::FALSE>
 struct Task {
 
   static constexpr uint64_t INIT_TIME = [] {
@@ -64,7 +70,7 @@ struct Task {
 #if defined(__x86_64__)
     return 17000;
 #elif defined(__aarch64__)
-    return 9000;
+    return 1800;
 #else
 #error "Unsupported architecture
 #endif
@@ -106,7 +112,7 @@ struct Task {
           assert(otherData.From < dataSplit);
           assert(otherThreads.From < threadSplit);
           Sched_.run_on_thread(
-              Task<Scheduler, Func, DelayBalance, true>{
+              Task<Scheduler, Func, balance, delayBalance, Initial::TRUE>{
                   Sched_, CurrentNode_, otherData.From, dataSplit, Func_,
                   SplitData{.Threads = {otherThreads.From, threadSplit},
                             .GrainSize = Split_.GrainSize}},
@@ -124,13 +130,13 @@ struct Task {
   }
 
   void operator()() {
-    if constexpr (Initial) {
+    if constexpr (initial == Initial::TRUE) {
       DistributeWork();
     } else {
       //  CurrentNode_->OnStolen();
     }
 
-    if constexpr (DelayBalance) {
+    if constexpr (delayBalance == DelayBalance::TRUE) {
       // at first we are executing job for INIT_TIME
       // and then create balancing task
       auto start = Now();
@@ -146,19 +152,24 @@ struct Task {
     while (Current_ != End_) {
       // make balancing tasks for remaining iterations
       // TODO: check stolen? maybe not each time?
-      if (IsDivisible() /*&& CurrentNode_->AllStolen()*/) {
-        // TODO: maybe we need to check "depth" - number of being stolen
-        // times?
-        // TODO: divide not by 2, maybe proportionally or other way? maybe
-        // create more than one task?
-        size_t mid = (Current_ + End_) / 2;
-        // eigen's scheduler will push task to the current thread queue,
-        // then some other thread can steal this
-        Sched_.run(Task<Scheduler, Func, DelayBalance>{
-            Sched_, CurrentNode_, mid, End_, Func_,
-            SplitData{.GrainSize = Split_.GrainSize,
-                      .Depth = Split_.Depth + 1}});
-        End_ = mid;
+
+      if constexpr (balance == Balance::TRUE) {
+        if (IsDivisible() /*&& CurrentNode_->AllStolen()*/) {
+          // TODO: maybe we need to check "depth" - number of being stolen
+          // times?
+          // TODO: divide not by 2, maybe proportionally or other way? maybe
+          // create more than one task?
+          size_t mid = (Current_ + End_) / 2;
+          // eigen's scheduler will push task to the current thread queue,
+          // then some other thread can steal this
+          Sched_.run(Task<Scheduler, Func, balance, delayBalance>{
+              Sched_, CurrentNode_, mid, End_, Func_,
+              SplitData{.GrainSize = Split_.GrainSize,
+                        .Depth = Split_.Depth + 1}});
+          End_ = mid;
+        } else {
+          Execute();
+        }
       } else {
         Execute();
       }
@@ -181,11 +192,11 @@ private:
   std::shared_ptr<TaskNode> CurrentNode_;
 };
 
-template <typename Sched, bool UseTimespan, typename F>
+template <typename Sched, Balance balance, DelayBalance UseTimespan, typename F>
 auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
                      size_t to, F func, size_t threadCount,
                      size_t grainSize = 1) {
-  return Task<Sched, F, UseTimespan, true>{
+  return Task<Sched, F, balance, UseTimespan, Initial::TRUE>{
       sched,
       parent,
       from,
@@ -194,11 +205,12 @@ auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
       SplitData{.Threads = {0, threadCount}, .GrainSize = grainSize}};
 }
 
-template <typename Sched, bool UseTimespan, typename F>
+template <typename Sched, Balance balance, DelayBalance delayBalance,
+          typename F>
 void ParallelFor(size_t from, size_t to, F func, size_t grainSize = 1) {
   Sched sched;
   auto parentNode = std::make_shared<TaskNode>(nullptr);
-  auto task = MakeInitialTask<Sched, UseTimespan>(
+  auto task = MakeInitialTask<Sched, balance, delayBalance>(
       sched, parentNode, from, to, std::move(func), GetNumThreads());
   task();
   sched.join_main_thread();
@@ -209,37 +221,20 @@ void ParallelFor(size_t from, size_t to, F func, size_t grainSize = 1) {
 
 template <typename Sched, typename F>
 void ParallelForTimespan(size_t from, size_t to, F func, size_t grainSize = 1) {
-  ParallelFor<Sched, true, F>(from, to, std::move(func), grainSize);
+  ParallelFor<Sched, Balance::TRUE, DelayBalance::TRUE, F>(
+      from, to, std::move(func), grainSize);
 }
 
 template <typename Sched, typename F>
 void ParallelForSimple(size_t from, size_t to, F func, size_t grainSize = 1) {
-  ParallelFor<Sched, false, F>(from, to, std::move(func), grainSize);
+  ParallelFor<Sched, Balance::TRUE, DelayBalance::FALSE, F>(
+      from, to, std::move(func), grainSize);
 }
 
 template <typename Sched, typename F>
-void ParallelForStatic(size_t from, size_t to, F &&func) {
-  Sched sched;
-  auto blocks = GetNumThreads();
-  auto blockSize = (to - from + blocks - 1) / blocks;
-  SpinBarrier barrier(blocks - 1);
-  for (size_t i = 1; i < blocks; ++i) {
-    size_t start = from + blockSize * i;
-    size_t end = std::min(start + blockSize, to);
-    sched.run_on_thread(
-        [&func, &barrier, start, end]() {
-          for (size_t i = start; i < end; ++i) {
-            func(i);
-          }
-          barrier.Notify();
-        },
-        i);
-  }
-  for (size_t i = from; i < std::min(from + blockSize, to); ++i) {
-    func(i);
-  }
-  sched.join_main_thread();
-  barrier.Wait();
+void ParallelForStatic(size_t from, size_t to, F func) {
+  ParallelFor<Sched, Balance::FALSE, DelayBalance::FALSE, F>(from, to,
+                                                             std::move(func));
 }
 
 } // namespace EigenPartitioner
