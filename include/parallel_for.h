@@ -106,16 +106,16 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
 #elif defined(OMP_MODE)
 #pragma omp parallel
 #if OMP_MODE == OMP_STATIC
-#pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
 #elif OMP_MODE == OMP_DYNAMIC_MONOTONIC
 // TODO: chunk size?
-#pragma omp for nowait schedule(monotonic : dynamic)
+#pragma omp for schedule(monotonic : dynamic)
 #elif OMP_MODE == OMP_DYNAMIC_NONMONOTONIC
-#pragma omp for nowait schedule(nonmonotonic : dynamic)
+#pragma omp for schedule(nonmonotonic : dynamic)
 #elif OMP_MODE == OMP_GUIDED_MONOTONIC
-#pragma omp for nowait schedule(monotonic : guided)
+#pragma omp for schedule(monotonic : guided)
 #elif OMP_MODE == OMP_GUIDED_NONMONOTONIC
-#pragma omp for nowait schedule(nonmonotonic : guided)
+#pragma omp for schedule(nonmonotonic : guided)
 #else
   static_assert(false, "Wrong OMP_MODE mode");
 #endif

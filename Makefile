@@ -42,6 +42,10 @@ bench_mmul:
 	@mkdir -p raw_results/mmul
 	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_mmul_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/mmul/$$x.json; done
 
+bench_mtranspose:
+	@mkdir -p raw_results/mtranspose
+	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_mtranspose_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/mtranspose/$$x.json; done
+
 run_scheduling_dist:
 	@mkdir -p raw_results/scheduling_dist
 	@for x in $(shell ls -1 cmake-build-release/scheduling_dist/scheduling_dist_* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-release/scheduling_dist/$$x > raw_results/scheduling_dist/$$x.json; done
@@ -53,7 +57,7 @@ run_trace_spin:
 run_timespan_tuner:
 	@for x in $(shell ls -1 cmake-build-release/timespan_tuner/timespan_tuner_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/timespan_tuner/$$x; done
 
-bench: clean_bench bench_dir clean release bench_spmv bench_spin bench_reduce bench_scan bench_mmul run_scheduling_dist run_trace_spin
+bench: clean_bench bench_dir clean release bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose run_scheduling_dist run_trace_spin
 
 bench_tests:
 	@for x in $(shell ls -1 cmake-build-debug/benchmarks/tests/*tests* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-debug/benchmarks/tests/$$x; done

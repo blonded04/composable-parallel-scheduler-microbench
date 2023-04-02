@@ -8,7 +8,7 @@ if(NOT benchmark_FOUND)
                   googlebenchmark)
 endif()
 
-list(APPEND BENCHMARKS bench_spmv_balanced bench_spmv_hyperbolic bench_spmv_triangle bench_reduce bench_scan bench_mmul)
+list(APPEND BENCHMARKS bench_spmv_balanced bench_spmv_hyperbolic bench_spmv_triangle bench_reduce bench_scan bench_mmul bench_mtranspose)
 foreach(bench IN LISTS BENCHMARKS)
     foreach(mode IN LISTS MODES)
         set(target ${bench}_${mode})

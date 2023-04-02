@@ -87,6 +87,36 @@ void MultiplyMatrix(const SPMV::DenseMatrix<T> &A,
 }
 
 template <typename T>
+void TransposeMatrix(SPMV::DenseMatrix<T> &input, SPMV::DenseMatrix<T> &out,
+                     size_t blocks = 16, size_t grainSize = 1) {
+  assert(input.Dimensions.Rows == out.Dimensions.Columns);
+  assert(input.Dimensions.Columns == out.Dimensions.Rows);
+  auto blocksRows = std::min(blocks, input.Dimensions.Rows);
+  auto blocksColumns = std::min(blocks, input.Dimensions.Columns);
+  auto blockRowSize = (input.Dimensions.Rows + blocksRows - 1) / blocksRows;
+  auto blockColumnSize =
+      (input.Dimensions.Columns + blocksColumns - 1) / blocksColumns;
+  ParallelFor(
+      0, blocksRows,
+      [&](size_t row) {
+        ParallelFor(0, blocksColumns, [&](size_t column) {
+          auto fromRow = row * blockRowSize;
+          auto fromCol = column * blockColumnSize;
+          for (size_t i = fromRow;
+               i != std::min(input.Dimensions.Rows, fromRow + blockRowSize);
+               ++i) {
+            for (size_t j = fromCol; j != std::min(input.Dimensions.Columns,
+                                                   fromCol + blockColumnSize);
+                 ++j) {
+              out.Data[j][i] = input.Data[i][j];
+            }
+          }
+        });
+      },
+      grainSize);
+}
+
+template <typename T>
 SparseMatrixCSR<T> DenseToSparse(const DenseMatrix<T> &in) {
   SparseMatrixCSR<T> out;
   out.Dimensions = in.Dimensions;
