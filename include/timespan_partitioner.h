@@ -57,8 +57,10 @@ enum class Balance { OFF, SIMPLE, DELAYED };
 
 enum class Initial { TRUE, FALSE };
 
+enum class GrainSize { DEFAULT, AUTO };
+
 template <typename Scheduler, typename Func, Balance balance,
-          Initial initial = Initial::FALSE>
+          GrainSize grainSizeMode, Initial initial = Initial::FALSE>
 struct Task {
 
   static constexpr uint64_t INIT_TIME = [] {
@@ -111,7 +113,7 @@ struct Task {
           assert(otherData.From < dataSplit);
           assert(otherThreads.From < threadSplit);
           Sched_.run_on_thread(
-              Task<Scheduler, Func, balance, Initial::TRUE>{
+              Task<Scheduler, Func, balance, grainSizeMode, Initial::TRUE>{
                   Sched_, CurrentNode_, otherData.From, dataSplit, Func_,
                   SplitData{.Threads = {otherThreads.From, threadSplit},
                             .GrainSize = Split_.GrainSize}},
@@ -135,7 +137,6 @@ struct Task {
       //  CurrentNode_->OnStolen();
     }
     if constexpr (balance == Balance::DELAYED) {
-      size_t dynamicGrainSize = 1;
       // at first we are executing job for INIT_TIME
       // and then create balancing task
       auto start = Now();
@@ -145,10 +146,10 @@ struct Task {
         if (Now() - start > INIT_TIME) {
           break;
         }
-        // TODO: we should use some another timespan for tuning grain size
-        dynamicGrainSize++;
+        if constexpr (grainSizeMode == GrainSize::AUTO) {
+          Split_.GrainSize++;
+        }
       }
-      Split_.GrainSize = dynamicGrainSize;
     }
 
     while (Current_ != End_) {
@@ -163,7 +164,7 @@ struct Task {
           size_t mid = (Current_ + End_) / 2;
           // eigen's scheduler will push task to the current thread queue,
           // then some other thread can steal this
-          Sched_.run(Task<Scheduler, Func, Balance::SIMPLE>{
+          Sched_.run(Task<Scheduler, Func, Balance::SIMPLE, GrainSize::DEFAULT>{
               Sched_, CurrentNode_, mid, End_, Func_,
               SplitData{.GrainSize = Split_.GrainSize,
                         .Depth = Split_.Depth + 1}});
@@ -193,11 +194,11 @@ private:
   std::shared_ptr<TaskNode> CurrentNode_;
 };
 
-template <typename Sched, Balance balance, typename F>
+template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
 auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
                      size_t to, F func, size_t threadCount,
                      size_t grainSize = 1) {
-  return Task<Sched, F, balance, Initial::TRUE>{
+  return Task<Sched, F, balance, grainSizeMode, Initial::TRUE>{
       sched,
       parent,
       from,
@@ -206,12 +207,12 @@ auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
       SplitData{.Threads = {0, threadCount}, .GrainSize = grainSize}};
 }
 
-template <typename Sched, Balance balance, typename F>
-void ParallelFor(size_t from, size_t to, F func, size_t grainSize = 1) {
+template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
+void ParallelFor(size_t from, size_t to, F func) {
   Sched sched;
   auto parentNode = std::make_shared<TaskNode>(nullptr);
-  auto task = MakeInitialTask<Sched, balance>(sched, parentNode, from, to,
-                                              std::move(func), GetNumThreads());
+  auto task = MakeInitialTask<Sched, balance, grainSizeMode>(
+      sched, parentNode, from, to, std::move(func), GetNumThreads());
   task();
   sched.join_main_thread();
   while (!parentNode.unique()) {
@@ -219,19 +220,22 @@ void ParallelFor(size_t from, size_t to, F func, size_t grainSize = 1) {
   }
 }
 
-template <typename Sched, typename F>
-void ParallelForTimespan(size_t from, size_t to, F func, size_t grainSize = 1) {
-  ParallelFor<Sched, Balance::DELAYED, F>(from, to, std::move(func), grainSize);
+template <typename Sched, GrainSize grainSizeMode, typename F>
+void ParallelForTimespan(size_t from, size_t to, F func) {
+  ParallelFor<Sched, Balance::DELAYED, grainSizeMode, F>(from, to,
+                                                         std::move(func));
 }
 
 template <typename Sched, typename F>
-void ParallelForSimple(size_t from, size_t to, F func, size_t grainSize = 1) {
-  ParallelFor<Sched, Balance::SIMPLE, F>(from, to, std::move(func), grainSize);
+void ParallelForSimple(size_t from, size_t to, F func) {
+  ParallelFor<Sched, Balance::SIMPLE, GrainSize::DEFAULT, F>(from, to,
+                                                             std::move(func));
 }
 
 template <typename Sched, typename F>
 void ParallelForStatic(size_t from, size_t to, F func) {
-  ParallelFor<Sched, Balance::OFF, F>(from, to, std::move(func));
+  ParallelFor<Sched, Balance::OFF, GrainSize::DEFAULT, F>(from, to,
+                                                          std::move(func));
 }
 
 } // namespace EigenPartitioner

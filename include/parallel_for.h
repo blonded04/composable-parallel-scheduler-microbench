@@ -35,14 +35,16 @@ struct InitOnce {
 #ifdef EIGEN_MODE
 // TODO: move to eigen header
 template <typename F>
-inline void EigenParallelFor(size_t from, size_t to, F &&func,
-                             size_t grainSize = 1) {
+inline void EigenParallelFor(size_t from, size_t to, F &&func) {
 #if EIGEN_MODE == EIGEN_SIMPLE
-  EigenPartitioner::ParallelForSimple<EigenPoolWrapper>(
-      from, to, std::forward<F>(func), grainSize);
+  EigenPartitioner::ParallelForSimple<EigenPoolWrapper>(from, to,
+                                                        std::forward<F>(func));
 #elif EIGEN_MODE == EIGEN_TIMESPAN
-  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper>(
-      from, to, std::forward<F>(func), grainSize);
+  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper, EigenPartitioner::GrainSize::DEFAULT>(
+      from, to, std::forward<F>(func));
+#elif EIGEN_MODE == EIGEN_TIMESPAN_GRAINSIZE
+  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper, EigenPartitioner::GrainSize::AUTO>(
+      from, to, std::forward<F>(func));
 #elif EIGEN_MODE == EIGEN_STATIC
   EigenPartitioner::ParallelForStatic<EigenPoolWrapper>(from, to,
                                                         std::forward<F>(func));
@@ -123,7 +125,7 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
     func(i);
   }
 #elif defined(EIGEN_MODE)
-  EigenParallelFor(from, to, func, grainSize);
+  EigenParallelFor(from, to, func);
 #else
   static_assert(false, "Wrong mode");
 #endif
