@@ -13,6 +13,13 @@ import os
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import AutoMinorLocator
 
+filtered_modes = set()
+# set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+# filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
+
+filtered_benchmarks = set()
+# filtered_benchmarks.update(["spmv"])
 
 def split_bench_name(s):
     s = s.split("_")
@@ -23,6 +30,26 @@ def split_bench_name(s):
         else:
             break
     return "_".join(prefix), "_".join(s[len(prefix) :])
+
+
+def generate_md_table(benchmarks):
+    header_row = ["name"] + list(benchmarks.keys())
+    table = "| " + " | ".join([r[r.startswith("bench_") and len("bench_"):] for r in header_row]) + " |" + "\n"
+    # name | bench1 | bench2 | bench3
+    # tbb_simple | 1 | 2 | 3
+    # tbb_auto | 1 | 2 | 3
+    # ...
+    results = {}
+    for bench_name, results_by_mode in benchmarks.items():
+        for name, values in results_by_mode.items():
+            results.setdefault(name, {})[bench_name] = values
+
+    for name, values in sorted(results.items()):
+        row = []
+        for col in header_row[1:]:
+            row.append(values.get(col, [""])[0])
+        table += "| " + name + " | " + " | ".join(row) + " |" + "\n"
+    return table
 
 
 def save_figure(path, fig, name):
@@ -42,28 +69,30 @@ def plot_benchmark(benchmarks, title, verbose):
         squeeze=False,
     )
     iter = 0
+    table_row = {}
     for params, bench_results in benchmarks.items():
         bench_results = sorted(bench_results.items(), key=lambda x: x[1])
         min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
-        axis[iter][0].barh(
-            *zip(*[(name, min_time / time) for name, time in bench_results])
-        )
+        params_str = ""
+        if params != "":
+            params_str = " with params " + params
+        axis[iter][0].barh(*zip(*bench_results))
+        axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+        axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
+        table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results}
         if verbose:
-            params_str = ""
-            if params != "":
-                params_str = " with params " + params
-            axis[iter][1].barh(*zip(*bench_results))
-            axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
-            axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
-            axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
-            axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
             axis[iter][0].set_xlabel(
-                title + params_str + ", normalized (higher is better)", fontsize=14
-            )
-            axis[iter][1].set_xlabel(
                 title + params_str + ", absolute time (lower is better), us",
                 fontsize=14,
             )
+            axis[iter][1].set_xlabel(
+                title + params_str + ", normalized (higher is better)", fontsize=14
+            )
+            axis[iter][1].barh(
+                *zip(*[(name, min_time / time) for name, time in bench_results])
+            )
+            axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+            axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
         iter += 1
 
     for axs in axis:
@@ -73,7 +102,7 @@ def plot_benchmark(benchmarks, title, verbose):
                 fig.tight_layout()
             else:
                 ax.tick_params(axis="both", which="major", labelsize=20)
-    return fig
+    return fig, table_row
 
 
 def parse_benchmarks(folder_name):
@@ -90,6 +119,8 @@ def parse_benchmarks(folder_name):
             name = bench_file.split(".")[0]
             bench_type, bench_mode = split_bench_name(name)
             if "benchmarks" in bench:
+                if filtered_modes and bench_mode not in filtered_modes:
+                    continue
                 # TODO: take not only last bench
                 for res in bench["benchmarks"]:
                     params = ";".join(
@@ -314,12 +345,15 @@ if __name__ == "__main__":
         if os.path.isdir(os.path.join(folder_name, d))
     ]
     # plot main benchmarks
+    table = {}
     for subdir in subdirs:
         benchmarks = parse_benchmarks(os.path.join(folder_name, subdir))
         if subdir == "scheduling_dist":
             scheduling_times_by_suffix = {}
             for bench_mode, res in benchmarks["scheduling_dist"][""].items():
                 bench_mode, measure_mode = bench_mode.rsplit("_", 1)
+                if filtered_modes and bench_mode not in filtered_modes:
+                    continue
                 if measure_mode not in scheduling_times_by_suffix:
                     scheduling_times_by_suffix[measure_mode] = {}
                 scheduling_times_by_suffix[measure_mode][bench_mode] = res["results"]
@@ -356,10 +390,14 @@ if __name__ == "__main__":
                 )
         elif subdir != "trace_spin":
             current_res_path = os.path.join(res_path, subdir)
+            if filtered_benchmarks and subdir not in filtered_benchmarks:
+                continue
             if not os.path.exists(current_res_path):
                 os.makedirs(current_res_path)
             for bench_type, bench in benchmarks.items():
                 print("Processing", bench_type)
-                fig = plot_benchmark(bench, bench_type, verbose)
+                fig, table_row = plot_benchmark(bench, bench_type, verbose)
                 save_figure(current_res_path, fig, bench_type)
+                table = {**table, **table_row}
                 plt.close()
+    print(generate_md_table(table))

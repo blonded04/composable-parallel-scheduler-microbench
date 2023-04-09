@@ -57,7 +57,7 @@ run_trace_spin:
 run_timespan_tuner:
 	@for x in $(shell ls -1 cmake-build-release/timespan_tuner/timespan_tuner_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/timespan_tuner/$$x; done
 
-bench: clean_bench bench_dir clean release bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose run_scheduling_dist run_trace_spin
+bench: clean_bench bench_dir clean release bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose run_trace_spin
 
 bench_tests:
 	@for x in $(shell ls -1 cmake-build-debug/benchmarks/tests/*tests* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-debug/benchmarks/tests/$$x; done
