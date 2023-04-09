@@ -203,7 +203,12 @@ public:
     }
   }
 
-  void JoinMainThread() { WorkerLoop(/* external */ true); }
+  void JoinMainThread() {
+    if (CurrentThreadId() == -1) {
+      return;
+    }
+    WorkerLoop(/* external */ true);
+  }
 
 private:
   // Create a single atomic<int> that encodes start and limit information for

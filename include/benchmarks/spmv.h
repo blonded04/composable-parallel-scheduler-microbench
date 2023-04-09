@@ -237,7 +237,13 @@ template <typename T> std::vector<T> GenVector(size_t m) {
 
 template <typename T> DenseMatrix<T> GenDenseMatrix(size_t rows, size_t cols) {
   DenseMatrix<T> out(rows, cols);
-  auto valueGen = std::uniform_real_distribution<T>(-1e9, 1e9);
+  auto valueGen = []() {
+    if constexpr (std::is_floating_point_v<T>) {
+      return std::uniform_real_distribution<T>(-1e9, 1e9);
+    } else {
+      return std::uniform_int_distribution<T>(-1e9, 1e9);
+    }
+  }();
 
   for (auto &row : out.Data) {
     for (auto &el : row) {

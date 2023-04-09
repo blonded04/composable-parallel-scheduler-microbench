@@ -113,3 +113,9 @@ if (ENABLE_TIMESPAN_TUNER)
   add_subdirectory(timespan_tuner)
 endif()
 
+
+if (ENABLE_TESTS)
+    add_subdirectory(include/tests)
+endif()
+
+
