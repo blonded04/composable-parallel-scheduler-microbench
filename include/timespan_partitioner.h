@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 
 namespace EigenPartitioner {
@@ -61,7 +62,6 @@ enum class GrainSize { DEFAULT, AUTO };
 template <typename Scheduler, typename Func, Balance balance,
           GrainSize grainSizeMode, Initial initial = Initial::FALSE>
 struct Task {
-
   static inline const uint64_t INIT_TIME = [] {
   // should be calculated using timespan_tuner with EIGEN_SIMPLE
   // currently 0.99 percentile for maximums is used: 99% of iterations should
@@ -97,17 +97,19 @@ struct Task {
                                 otherData.Size());
         auto threadsSize = otherThreads.Size();
         auto threadStep = threadsSize / parts;
-        auto increareThreadStepFor = threadsSize % parts;
+        auto increaseLastThreadsSteps = threadsSize % parts;
         auto dataSize = otherData.Size(); // TODO: unify code with threads
         auto dataStep = dataSize / parts;
-        auto increaseDataStepFor = dataSize % parts;
+        auto increaseLastDataSteps = dataSize % parts;
         for (size_t i = 0; i != parts; ++i) {
+          auto shouldBeIncreasedThread =
+              (parts - i) <= increaseLastThreadsSteps;
           auto threadSplit =
               std::min(otherThreads.To, otherThreads.From + threadStep +
-                                            (i < increareThreadStepFor));
-          auto dataSplit =
-              std::min(otherData.To,
-                       otherData.From + dataStep + (i < increaseDataStepFor));
+                                            shouldBeIncreasedThread);
+          auto shouldBeIncreasedData = (parts - i) <= increaseLastDataSteps;
+          auto dataSplit = std::min(otherData.To, otherData.From + dataStep +
+                                                      shouldBeIncreasedData);
           assert(otherData.From < dataSplit);
           assert(otherThreads.From < threadSplit);
           Sched_.run_on_thread(
