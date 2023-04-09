@@ -1,4 +1,6 @@
-#include "../include/parallel_for.h"
+#pragma once
+
+#include "../parallel_for.h"
 #include <cassert>
 #include <cmath>
 #include <cstddef>

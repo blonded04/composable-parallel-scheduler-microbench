@@ -2,7 +2,7 @@
 
 #include "../include/parallel_for.h"
 #include "../include/trace.h"
-#include "spmv.h"
+#include "../include/benchmarks/spmv.h"
 #include <fstream>
 #include <iostream>
 

@@ -1,4 +1,4 @@
-#include "spmv.h"
+#include "../../include/benchmarks/spmv.h"
 #include <gtest/gtest.h>
 
 using namespace SPMV;

@@ -1,6 +1,5 @@
 #pragma once
 #include "num_threads.h"
-#include "poor_barrier.h"
 #include "util.h"
 #include <array>
 #include <atomic>

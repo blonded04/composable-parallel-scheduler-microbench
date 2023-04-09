@@ -1,4 +1,4 @@
-#include "scan.h"
+#include "../../include/benchmarks/scan.h"
 #include <gtest/gtest.h>
 
 TEST(ParallelFor, PrefixSum) {

@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include "../include/parallel_for.h"
-#include "spmv.h"
+#include "../include/benchmarks/spmv.h"
 
 using namespace SPMV;
 

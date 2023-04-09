@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../include/parallel_for.h"
+#include "../parallel_for.h"
 #include <cassert>
 #include <vector>
 
