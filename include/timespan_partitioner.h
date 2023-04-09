@@ -62,13 +62,12 @@ template <typename Scheduler, typename Func, Balance balance,
           GrainSize grainSizeMode, Initial initial = Initial::FALSE>
 struct Task {
 
-  static constexpr uint64_t INIT_TIME = [] {
+  static inline const uint64_t INIT_TIME = [] {
   // should be calculated using timespan_tuner with EIGEN_SIMPLE
   // currently 0.99 percentile for maximums is used: 99% of iterations should
   // fit scheduling in timespan
 #if defined(__x86_64__)
-    // return 17000;
-    return 17000;
+    return 530 * GetNumThreads();
 #elif defined(__aarch64__)
     return 1800;
 #else

@@ -45,6 +45,7 @@ T MultiplyRow(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
 template <typename T>
 void MultiplyMatrix(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
                     std::vector<T> &out, size_t grainSize = 1) {
+  assert(A.Dimensions.Columns == x.size());
   ParallelFor(
       0, A.Dimensions.Rows, [&](size_t i) { out[i] = MultiplyRow(A, x, i); },
       grainSize);
