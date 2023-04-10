@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include <mutex>
+
 namespace SPMV {
 
 struct MatrixDimensions {
@@ -168,11 +170,14 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
   std::set<std::pair<size_t, size_t>> positions;
   size_t elements_n = n * m * density;
   if constexpr (Kind == SparseKind::BALANCED) {
-    auto posGen = std::uniform_int_distribution<size_t>(0, n * m - 1);
-    for (size_t i = 0; i < elements_n; ++i) {
-      size_t pos = posGen(RandomGenerator);
-      positions.insert({pos / m, pos % m});
+    auto posGen = std::uniform_int_distribution<size_t>(0, m - 1);
+    for (size_t i = 0; i != n; ++i) {
+      for (size_t j = 0; j != m * density; ++j) {
+        size_t col = posGen(RandomGenerator);
+        positions.insert({i, col});
+      }
     }
+
   } else if constexpr (Kind == SparseKind::HYPERBOLIC) {
     auto posGen = std::uniform_int_distribution<size_t>(0, m - 1);
     for (size_t i = 0; i != n; ++i) {
@@ -185,15 +190,15 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
       }
     }
   } else if constexpr (Kind == SparseKind::TRIANGLE) {
-    auto posGen = std::uniform_int_distribution<size_t>(0, n * m - 1);
-    for (size_t i = 0; i < n * m * density; ++i) {
-      size_t pos = posGen(RandomGenerator);
-      auto x = pos / m;
-      auto y = pos % m;
-      if (x <= y) {
-        positions.insert({x, y});
-      } else {
-        positions.insert({y, x});
+    auto posGen = std::uniform_int_distribution<size_t>(0, m - 1);
+    for (size_t i = 0; i != n; ++i) {
+      // distribute elements like triangle
+      // sum of elementsCountInRow = density * m * 2 /n * (1 + 2 + 3 + ... + n)
+      // ~ density * m * (n + 1)
+      size_t elementsCountInRow = density * m * (i + 1) * 2 / n;
+      for (size_t j = 0; j != elementsCountInRow; ++j) {
+        size_t pos = posGen(RandomGenerator);
+        positions.insert({i, pos});
       }
     }
   } else {
