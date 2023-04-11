@@ -1,3 +1,4 @@
+#pragma once
 // This file is part of Eigen, a lightweight C++ template library
 // for linear algebra.
 //
@@ -21,20 +22,40 @@
 
 namespace Eigen {
 
+struct Task {
+  virtual void operator()() = 0;
+  virtual ~Task() = default;
+};
+
+template <typename F> struct UniqueTask : Task {
+
+  UniqueTask(F &&f) : f(std::move(f)) {}
+
+  void operator()() override {
+    f();
+    delete this; // really safe to do heere
+  }
+
+  std::decay_t<F> f;
+};
+
+template <typename F> Task *MakeTask(F &&f) {
+  return new UniqueTask<decltype(std::forward<F>(f))>{std::forward<F>(f)};
+}
+
 // This defines an interface that ThreadPoolDevice can take to use
 // custom thread pools underneath.
 class ThreadPoolInterface {
 public:
   // Submits a closure to be run by a thread in the pool.
-  virtual void Schedule(std::function<void()> fn) = 0;
+  virtual void Schedule(Task *task) = 0;
 
   // Submits a closure to be run by threads in the range [start, end) in the
   // pool.
-  virtual void ScheduleWithHint(std::function<void()> fn, int /*start*/,
-                                int /*end*/) {
+  virtual void ScheduleWithHint(Task *task, int /*start*/, int /*end*/) {
     // Just defer to Schedule in case sub-classes aren't interested in
     // overriding this functionality.
-    Schedule(fn);
+    Schedule(task);
   }
 
   // If implemented, stop processing the closures that have been enqueued.
@@ -55,8 +76,8 @@ public:
 template <typename Environment>
 class ThreadPoolTempl : public Eigen::ThreadPoolInterface {
 public:
-  typedef typename Environment::Task Task;
-  typedef RunQueue<Task, 1024> Queue;
+  using TaskPtr = Task *;
+  using Queue = RunQueue<TaskPtr, 1024>;
 
   ThreadPoolTempl(int num_threads, Environment env = Environment())
       : ThreadPoolTempl(num_threads, true, false, env) {}
@@ -132,29 +153,29 @@ public:
     }
   }
 
-  void Schedule(std::function<void()> fn) override {
+  void Schedule(TaskPtr p) override {
     // schedule on main thread only when explicitly requested
-    ScheduleWithHint(std::move(fn), 0, num_threads_);
+    ScheduleWithHint(p, 0, num_threads_);
   }
 
-  void RunOnThread(std::function<void()> fn, size_t threadIndex) {
+  void RunOnThread(TaskPtr t, size_t threadIndex) {
     threadIndex = threadIndex % num_threads_;
-    auto t = env_.CreateTask(std::move(fn));
-    thread_data_[threadIndex].PushTask(t);
-    if (t.f) {
+
+    if (!thread_data_[threadIndex].PushTask(t)) {
       // failed to push, execute directly
-      env_.ExecuteTask(t);
+      ExecuteTask(t);
     }
   }
 
-  void ScheduleWithHint(std::function<void()> fn, int start,
-                        int limit) override {
-    Task t = env_.CreateTask(std::move(fn));
+  void ScheduleWithHint(TaskPtr t, int start, int limit) override {
     PerThread *pt = GetPerThread();
+    bool pushed = false;
     if (pt->pool == this) {
       // Worker thread of this pool, push onto the thread's queue.
       Queue &q = thread_data_[pt->thread_id].queue;
-      t = q.PushFront(std::move(t));
+      if (q.PushFront(t)) {
+        return;
+      }
     } else {
       // A free-standing thread (or worker of another pool), push onto a random
       // queue.
@@ -164,7 +185,9 @@ public:
       int rnd = Rand(&pt->rand) % num_queues;
       assert(start + rnd < limit);
       Queue &q = thread_data_[start + rnd].queue;
-      t = q.PushBack(std::move(t)); // TODO(vorkdenis): try to push front?
+      if (q.PushBack(t)) {
+        return;
+      }
     }
     // Note: below we touch this after making w available to worker threads.
     // Strictly speaking, this can lead to a racy-use-after-free. Consider that
@@ -173,9 +196,7 @@ public:
     // completes overall computations, which in turn leads to destruction of
     // this. We expect that such scenario is prevented by program, that is,
     // this is kept alive while any threads can potentially be in Schedule.
-    if (t.f) {
-      env_.ExecuteTask(t); // Push failed, execute directly.
-    }
+    ExecuteTask(t); // Push failed, execute directly.
   }
 
   void Cancel() override {
@@ -188,8 +209,6 @@ public:
       thread_data_[i].thread->OnCancel();
     }
 #endif
-
-    // Wake up the threads without work to let them exit on their own.
   }
 
   int NumThreads() const final { return num_threads_; }
@@ -224,6 +243,8 @@ private:
   inline unsigned EncodePartition(unsigned start, unsigned limit) {
     return (start << kMaxPartitionBits) | limit;
   }
+
+  void ExecuteTask(TaskPtr p) { (*p)(); }
 
   inline void DecodePartition(unsigned val, unsigned *start, unsigned *limit) {
     *limit = val & (kMaxThreads - 1);
@@ -276,55 +297,52 @@ private:
     std::atomic<unsigned> steal_partition;
     Queue queue;
 #ifdef EIGEN_POOL_RUNNEXT
-    std::atomic<Task *> runnext{nullptr};
+    std::atomic<TaskPtr> runnext{nullptr};
 #endif
 
-    void PushTask(Task &t) {
+    bool PushTask(TaskPtr p) {
 #ifdef EIGEN_POOL_RUNNEXT
       if (runnext.load(std::memory_order_relaxed) == nullptr) {
-        auto p = new Task(std::move(t));
-        Task *expected = nullptr;
+        TaskPtr expected = nullptr;
         if (runnext.compare_exchange_strong(expected, p,
                                             std::memory_order_release)) {
-          return;
+          return true;
         }
-        t = queue.PushBack(std::move(*p));
+        return queue.PushBack(std::move(p));
       } else {
-        t = queue.PushBack(std::move(t));
+        return queue.PushBack(std::move(p));
       }
 #else
       t = queue.PushBack(std::move(t));
 #endif
     }
-    Task PopFront() {
+    TaskPtr PopFront() {
 #ifdef EIGEN_POOL_RUNNEXT
       if (auto p = PopRunnext(); p) {
-        return std::move(*p);
+        return p;
       }
 #endif
       return queue.PopFront();
     }
 
-    Task PopBack() { return queue.PopBack(); }
+    TaskPtr PopBack() { return queue.PopBack(); }
 
 #ifdef EIGEN_POOL_RUNNEXT
-    std::unique_ptr<Task> PopRunnext() {
+    TaskPtr PopRunnext() {
       if (auto p = runnext.load(std::memory_order_relaxed); p) {
         auto success = runnext.compare_exchange_strong(
             p, nullptr, std::memory_order_acquire);
         if (success) {
-          return std::unique_ptr<Task>(p);
+          return p;
         }
       }
       return nullptr;
     }
 
-    Task StealWithRunnext() {
-      Task t = PopBack();
-      if (!t.f) {
-        if (auto p = PopRunnext(); p) {
-          t = std::move(*p);
-        }
+    TaskPtr StealWithRunnext() {
+      TaskPtr t = PopBack();
+      if (!t) {
+        t = PopRunnext();
       }
       return t;
     }
@@ -349,19 +367,19 @@ private:
     auto thread_id = pt->thread_id;
     auto &threadData = thread_data_[thread_id];
     while (!cancelled_) {
-      Task t = threadData.PopFront();
-      if (!t.f) {
+      TaskPtr t = threadData.PopFront();
+      if (!t) {
         t = LocalSteal();
       }
-      if (!t.f) {
+      if (!t) {
         t = GlobalSteal();
       }
-      if (!t.f && external) {
+      if (!t && external) {
         // external thread shouldn't wait for work, it should just exit.
         return;
       }
-      if (t.f) {
-        env_.ExecuteTask(t);
+      if (t) {
+        ExecuteTask(t);
       } else if (done_) {
         return;
       }
@@ -370,7 +388,7 @@ private:
 
   // Steal tries to steal work from other worker threads in the range [start,
   // limit) in best-effort manner.
-  Task Steal(unsigned start, unsigned limit) {
+  TaskPtr Steal(unsigned start, unsigned limit) {
     PerThread *pt = GetPerThread();
     const size_t size = limit - start;
     unsigned r = Rand(&pt->rand);
@@ -384,8 +402,8 @@ private:
 
     for (unsigned i = 0; i < size; i++) {
       assert(start + victim < limit);
-      Task t = thread_data_[start + victim].PopBack();
-      if (t.f) {
+      TaskPtr t = thread_data_[start + victim].PopBack();
+      if (t) {
         return t;
       }
       victim += inc;
@@ -395,8 +413,8 @@ private:
     }
 #ifdef EIGEN_POOL_RUNNEXT
     for (unsigned i = 0; i < size; i++) {
-      Task t = thread_data_[start + victim].StealWithRunnext();
-      if (t.f) {
+      TaskPtr t = thread_data_[start + victim].StealWithRunnext();
+      if (t) {
         return t;
       }
       victim += inc;
@@ -405,17 +423,17 @@ private:
       }
     }
 #endif
-    return Task();
+    return nullptr;
   }
 
   // Steals work within threads belonging to the partition.
-  Task LocalSteal() {
+  TaskPtr LocalSteal() {
     PerThread *pt = GetPerThread();
     unsigned partition = GetStealPartition(pt->thread_id);
     // If thread steal partition is the same as global partition, there is no
     // need to go through the steal loop twice.
     if (global_steal_partition_ == partition)
-      return Task();
+      return nullptr;
     unsigned start, limit;
     DecodePartition(partition, &start, &limit);
     AssertBounds(start, limit);
@@ -424,7 +442,7 @@ private:
   }
 
   // Steals work from any other thread in the pool.
-  Task GlobalSteal() { return Steal(0, num_threads_); }
+  TaskPtr GlobalSteal() { return Steal(0, num_threads_); }
 
   int NonEmptyQueueIndex() {
     PerThread *pt = GetPerThread();

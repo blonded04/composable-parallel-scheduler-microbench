@@ -55,17 +55,17 @@ public:
 
   // PushFront inserts w at the beginning of the queue.
   // If queue is full returns w, otherwise returns default-constructed Work.
-  Work PushFront(Work w) {
+  bool PushFront(Work w) {
     unsigned front = front_.load(std::memory_order_relaxed);
     Elem *e = &array_[front & kMask];
     uint8_t s = e->state.load(std::memory_order_relaxed);
     if (s != kEmpty ||
         !e->state.compare_exchange_strong(s, kBusy, std::memory_order_acquire))
-      return w;
+      return false;
     front_.store(front + 1 + (kSize << 1), std::memory_order_relaxed);
     e->w = std::move(w);
     e->state.store(kReady, std::memory_order_release);
-    return Work();
+    return true;
   }
 
   // PopFront removes and returns the first element in the queue.
@@ -86,19 +86,19 @@ public:
 
   // PushBack adds w at the end of the queue.
   // If queue is full returns w, otherwise returns default-constructed Work.
-  Work PushBack(Work w) {
+  bool PushBack(Work w) {
     std::unique_lock<std::mutex> lock(mutex_);
     unsigned back = back_.load(std::memory_order_relaxed);
     Elem *e = &array_[(back - 1) & kMask];
     uint8_t s = e->state.load(std::memory_order_relaxed);
     if (s != kEmpty ||
         !e->state.compare_exchange_strong(s, kBusy, std::memory_order_acquire))
-      return w;
+      return false;
     back = ((back - 1) & kMask2) | (back & ~kMask2);
     back_.store(back, std::memory_order_relaxed);
     e->w = std::move(w);
     e->state.store(kReady, std::memory_order_release);
-    return Work();
+    return true;
   }
 
   // PopBack removes and returns the last elements in the queue.

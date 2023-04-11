@@ -18,11 +18,11 @@ inline auto EigenPool = Eigen::ThreadPool(GetNumThreads(), true,
 class EigenPoolWrapper {
 public:
   template <typename F> void run(F &&f) {
-    EigenPool.Schedule(std::forward<F>(f));
+    EigenPool.Schedule(Eigen::MakeTask(std::forward<F>(f)));
   }
 
   template <typename F> void run_on_thread(F &&f, size_t hint) {
-    EigenPool.RunOnThread(std::forward<F>(f), hint);
+    EigenPool.RunOnThread(Eigen::MakeTask(std::forward<F>(f)), hint);
   }
 
   void join_main_thread() { EigenPool.JoinMainThread(); }
