@@ -61,7 +61,7 @@ if (USE_LB4OMP)
   )
 
   FetchContent_MakeAvailable(lb4omp)
-  add_library(lb4omp SHARED IMPORTED GLOBAL)
+  add_library(lb4omp SHARED IMPORTED)
   set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
 else()
   find_package(OpenMP REQUIRED)
@@ -106,10 +106,13 @@ function(add_target target exec mode)
       target_compile_definitions(${target} PRIVATE SERIAL=1)
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
-      # todo: hide it under flag
-      # todo: make bash script to patch elf
       if (USE_LB4OMP)
         target_link_libraries(${target} lb4omp)
+        # tricky patch to prefer built openmp over system's
+        add_custom_command(TARGET ${target}
+          POST_BUILD
+          COMMAND sudo patchelf --replace-needed "libomp.so" "${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so" $<TARGET_FILE:${target}>
+        )
       else()
         target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
