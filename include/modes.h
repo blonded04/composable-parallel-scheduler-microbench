@@ -23,6 +23,7 @@ inline std::string GetParallelMode() {
 #define OMP_DYNAMIC_NONMONOTONIC 3
 #define OMP_GUIDED_MONOTONIC 4
 #define OMP_GUIDED_NONMONOTONIC 5
+#define OMP_RUNTIME 6
 
 #define TBB_SIMPLE 1
 #define TBB_AUTO 2

@@ -40,10 +40,12 @@ inline void EigenParallelFor(size_t from, size_t to, F &&func) {
   EigenPartitioner::ParallelForSimple<EigenPoolWrapper>(from, to,
                                                         std::forward<F>(func));
 #elif EIGEN_MODE == EIGEN_TIMESPAN
-  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper, EigenPartitioner::GrainSize::DEFAULT>(
+  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper,
+                                        EigenPartitioner::GrainSize::DEFAULT>(
       from, to, std::forward<F>(func));
 #elif EIGEN_MODE == EIGEN_TIMESPAN_GRAINSIZE
-  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper, EigenPartitioner::GrainSize::AUTO>(
+  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper,
+                                        EigenPartitioner::GrainSize::AUTO>(
       from, to, std::forward<F>(func));
 #elif EIGEN_MODE == EIGEN_STATIC
   EigenPartitioner::ParallelForStatic<EigenPoolWrapper>(from, to,
@@ -109,6 +111,8 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
 #pragma omp parallel
 #if OMP_MODE == OMP_STATIC
 #pragma omp for schedule(static)
+#elif OMP_MODE == OMP_RUNTIME
+#pragma omp for schedule(runtime)
 #elif OMP_MODE == OMP_DYNAMIC_MONOTONIC
 // TODO: chunk size?
 #pragma omp for schedule(monotonic : dynamic)

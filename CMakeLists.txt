@@ -43,8 +43,29 @@ if (ENABLE_TESTS)
     endif()
 endif()
 
-find_package(OpenMP REQUIRED)
-# todo: test that openmp is used from llvm build
+
+
+option(USE_LB4OMP "Use lb4omp instead of system omp" OFF)
+if ($ENV{USE_LB4OMP})
+  set (USE_LB4OMP $ENV{USE_LB4OMP})
+endif()
+
+if (USE_LB4OMP)
+  set(OPENMP_STANDALONE_BUILD TRUE)
+  set(LIBOMP_HAVE___RDTSC TRUE)
+  set(LIBOMP_HAVE_X86INTRIN_H TRUE)
+  # todo: test that openmp is used from llvm build
+  FetchContent_Declare(
+    lb4omp
+    GIT_REPOSITORY https://github.com//unibas-dmi-hpc/LB4OMP.git
+  )
+
+  FetchContent_MakeAvailable(lb4omp)
+  add_library(lb4omp SHARED IMPORTED GLOBAL)
+  set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
+else()
+  find_package(OpenMP REQUIRED)
+endif()
 
 # link with TBB
 FetchContent_Declare(
@@ -67,6 +88,10 @@ endif()
 list(APPEND OMP_MODES OMP_STATIC
   OMP_DYNAMIC_MONOTONIC OMP_DYNAMIC_NONMONOTONIC
   OMP_GUIDED_MONOTONIC OMP_GUIDED_NONMONOTONIC)
+if (USE_LB4OMP)
+  list(APPEND OMP_MODES OMP_RUNTIME)
+endif()
+
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 if($ENV{ENABLE_RAPID})
   list(APPEND TBB_MODES TBB_RAPID)
@@ -81,7 +106,13 @@ function(add_target target exec mode)
       target_compile_definitions(${target} PRIVATE SERIAL=1)
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
-      target_link_libraries(${target} OpenMP::OpenMP_CXX)
+      # todo: hide it under flag
+      # todo: make bash script to patch elf
+      if (USE_LB4OMP)
+        target_link_libraries(${target} lb4omp)
+      else()
+        target_link_libraries(${target} OpenMP::OpenMP_CXX)
+      endif()
     elseif (mode MATCHES "^TBB")
       target_compile_definitions(${target} PRIVATE TBB_MODE=${mode})
       target_link_libraries(${target} TBB::tbb)
