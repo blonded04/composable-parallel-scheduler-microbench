@@ -161,7 +161,8 @@ public:
   void RunOnThread(TaskPtr t, size_t threadIndex) {
     threadIndex = threadIndex % num_threads_;
     PerThread *pt = GetPerThread();
-    if (!thread_data_[threadIndex].PushTask(t, !(pt && threadIndex == pt->thread_id))) {
+    if (!thread_data_[threadIndex].PushTask(
+            t, !(pt && threadIndex == pt->thread_id))) {
       // failed to push, execute directly
       ExecuteTask(t);
     }
@@ -285,8 +286,7 @@ private:
   typedef typename Environment::EnvThread Thread;
 
   struct PerThread {
-    constexpr PerThread()
-        : pool(NULL), rand(0), thread_id(-1) {}
+    constexpr PerThread() : pool(NULL), rand(0), thread_id(-1) {}
     ThreadPoolTempl *pool; // Parent pool, or null for normal threads.
     uint64_t rand;         // Random generator state.
     int thread_id;         // Worker thread index in pool.
@@ -299,7 +299,8 @@ private:
     Queue queue;
 #ifdef EIGEN_POOL_RUNNEXT
     std::atomic<TaskPtr> runnext{nullptr};
-    // use IDLE to indicate that the thread is idling and tasks shouldn't be pushed
+    // use IDLE to indicate that the thread is idling and tasks shouldn't be
+    // pushed
     static inline const TaskPtr IDLE = reinterpret_cast<TaskPtr>(1);
 #endif
 
@@ -324,7 +325,7 @@ private:
       auto current = runnext.load(std::memory_order_relaxed);
       if (current == nullptr) {
         return runnext.compare_exchange_strong(current, IDLE,
-                                               std::memory_order_release);
+                                               std::memory_order_relaxed);
       }
       return current == IDLE;
     }
@@ -333,7 +334,7 @@ private:
       auto current = runnext.load(std::memory_order_relaxed);
       if (current == IDLE) {
         runnext.compare_exchange_strong(current, nullptr,
-                                        std::memory_order_release);
+                                        std::memory_order_relaxed);
       }
     }
 

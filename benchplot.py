@@ -17,9 +17,11 @@ filtered_modes = set()
 # set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
 # filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
 # filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
+filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "EIGEN_TIMESPAN_GRAINSIZE"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
+
 
 def split_bench_name(s):
     s = s.split("_")
@@ -62,47 +64,72 @@ def save_figure(path, fig, name):
 # returns new plot
 def plot_benchmark(benchmarks, title, verbose):
     params_count = len(benchmarks)
-    fig, axis = plt.subplots(
-        params_count,
-        2 if verbose else 1,
-        figsize=(36 if verbose else 16, params_count * 6),
-        squeeze=False,
-    )
-    iter = 0
-    table_row = {}
-    for params, bench_results in benchmarks.items():
-        bench_results = sorted(bench_results.items(), key=lambda x: x[1])
-        min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
-        params_str = ""
-        if params != "":
-            params_str = " with params " + params
-        axis[iter][0].barh(*zip(*bench_results))
-        axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
-        axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
-        table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results}
-        if verbose:
-            axis[iter][0].set_xlabel(
-                title + params_str + ", absolute time (lower is better), us",
-                fontsize=14,
-            )
-            axis[iter][1].set_xlabel(
-                title + params_str + ", normalized (higher is better)", fontsize=14
-            )
-            axis[iter][1].barh(
-                *zip(*[(name, min_time / time) for name, time in bench_results])
-            )
-            axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
-            axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
-        iter += 1
-
-    for axs in axis:
-        for ax in axs:
+    if params_count == 1:
+        fig, axis = plt.subplots(
+            params_count,
+            2 if verbose else 1,
+            figsize=(36 if verbose else 16, params_count * 6),
+            squeeze=False,
+        )
+        iter = 0
+        table_row = {}
+        for params, bench_results in benchmarks.items():
+            bench_results = sorted(bench_results.items(), key=lambda x: x[1])
+            min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
+            params_str = ""
+            if params != "":
+                params_str = " with params " + params
+            axis[iter][0].barh(*zip(*bench_results))
+            axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+            axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
+            table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results}
             if verbose:
-                ax.tick_params(axis="both", which="major", labelsize=14)
-                fig.tight_layout()
-            else:
-                ax.tick_params(axis="both", which="major", labelsize=20)
-    return fig, table_row
+                axis[iter][0].set_xlabel(
+                    title + params_str + ", absolute time (lower is better), us",
+                    fontsize=14,
+                )
+                axis[iter][1].set_xlabel(
+                    title + params_str + ", normalized (higher is better)", fontsize=14
+                )
+                axis[iter][1].barh(
+                    *zip(*[(name, min_time / time) for name, time in bench_results])
+                )
+                axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+                axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
+            iter += 1
+
+        for axs in axis:
+            for ax in axs:
+                if verbose:
+                    ax.tick_params(axis="both", which="major", labelsize=14)
+                    fig.tight_layout()
+                else:
+                    ax.tick_params(axis="both", which="major", labelsize=20)
+        return fig, table_row
+    else:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        table_row = {}
+        for params, bench_results in benchmarks.items():
+            min_time = sorted(bench_results.items(), key=lambda x: x[1])[0][1]
+            table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results.items()}
+        # make another map:
+        # name -> {params -> time}
+        # then plot it
+        inverted = {}
+        for params, bench_results in benchmarks.items():
+            for name, value in bench_results.items():
+                inverted.setdefault(name, {})[params] = math.log(value)
+        for name, bench_results in inverted.items():
+            bench_results = {k: v for k, v in bench_results.items()}
+            ax.plot(bench_results.keys(), bench_results.values(), marker='o', label=name)
+            # ax.set_title('Benchmark Comparison of Libraries')
+        ax.set_xlabel('Parameters', fontsize=14)
+        ax.set_ylabel('Time, log(us)', fontsize=14)
+        ax.legend()
+        plt.tight_layout()
+        return fig, table_row
+
 
 
 def parse_benchmarks(folder_name):
