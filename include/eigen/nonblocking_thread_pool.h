@@ -160,8 +160,8 @@ public:
 
   void RunOnThread(TaskPtr t, size_t threadIndex) {
     threadIndex = threadIndex % num_threads_;
-
-    if (!thread_data_[threadIndex].PushTask(t)) {
+    PerThread *pt = GetPerThread();
+    if (!thread_data_[threadIndex].PushTask(t, !(pt && threadIndex == pt->thread_id))) {
       // failed to push, execute directly
       ExecuteTask(t);
     }
@@ -285,7 +285,8 @@ private:
   typedef typename Environment::EnvThread Thread;
 
   struct PerThread {
-    constexpr PerThread() : pool(NULL), rand(0), thread_id(-1) {}
+    constexpr PerThread()
+        : pool(NULL), rand(0), thread_id(-1) {}
     ThreadPoolTempl *pool; // Parent pool, or null for normal threads.
     uint64_t rand;         // Random generator state.
     int thread_id;         // Worker thread index in pool.
@@ -298,11 +299,13 @@ private:
     Queue queue;
 #ifdef EIGEN_POOL_RUNNEXT
     std::atomic<TaskPtr> runnext{nullptr};
+    // use IDLE to indicate that the thread is idling and tasks shouldn't be pushed
+    static inline const TaskPtr IDLE = reinterpret_cast<TaskPtr>(1);
 #endif
 
-    bool PushTask(TaskPtr p) {
+    bool PushTask(TaskPtr p, bool useRunnext) {
 #ifdef EIGEN_POOL_RUNNEXT
-      if (runnext.load(std::memory_order_relaxed) == nullptr) {
+      if (useRunnext && runnext.load(std::memory_order_relaxed) == nullptr) {
         TaskPtr expected = nullptr;
         if (runnext.compare_exchange_strong(expected, p,
                                             std::memory_order_release)) {
@@ -316,9 +319,27 @@ private:
       t = queue.PushBack(std::move(t));
 #endif
     }
+
+    bool SetIdle() {
+      auto current = runnext.load(std::memory_order_relaxed);
+      if (current == nullptr) {
+        return runnext.compare_exchange_strong(current, IDLE,
+                                               std::memory_order_release);
+      }
+      return current == IDLE;
+    }
+
+    void ResetIdle() {
+      auto current = runnext.load(std::memory_order_relaxed);
+      if (current == IDLE) {
+        runnext.compare_exchange_strong(current, nullptr,
+                                        std::memory_order_release);
+      }
+    }
+
     TaskPtr PopFront() {
 #ifdef EIGEN_POOL_RUNNEXT
-      if (auto p = PopRunnext(); p) {
+      if (auto p = PopRunnext(); p && p != IDLE) {
         return p;
       }
 #endif
@@ -362,10 +383,10 @@ private:
 
   // Main worker thread loop.
   void WorkerLoop(bool external = false) {
-    // TODO: init in constructor?
     PerThread *pt = GetPerThread();
     auto thread_id = pt->thread_id;
     auto &threadData = thread_data_[thread_id];
+    threadData.ResetIdle();
     while (!cancelled_) {
       TaskPtr t = threadData.PopFront();
       if (!t) {
@@ -374,7 +395,7 @@ private:
       if (!t) {
         t = GlobalSteal();
       }
-      if (!t && external) {
+      if (!t && external && threadData.SetIdle()) {
         // external thread shouldn't wait for work, it should just exit.
         return;
       }
@@ -411,18 +432,6 @@ private:
         victim -= size;
       }
     }
-#ifdef EIGEN_POOL_RUNNEXT
-    for (unsigned i = 0; i < size; i++) {
-      TaskPtr t = thread_data_[start + victim].StealWithRunnext();
-      if (t) {
-        return t;
-      }
-      victim += inc;
-      if (victim >= size) {
-        victim -= size;
-      }
-    }
-#endif
     return nullptr;
   }
 
