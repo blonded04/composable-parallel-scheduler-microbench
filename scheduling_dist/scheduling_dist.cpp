@@ -31,7 +31,7 @@ static void RunWithSpin(size_t threadNum, Tracing::Tracer &tracer,
   auto tasksCount = threadNum * tasksPerThread;
   tracer.RunIteration(tasksCount, [&](size_t i) {
     // emulating work
-    for (size_t i = 0; i < spinPerIter; ++i) {
+    for (size_t j = 0; j < spinPerIter; ++j) {
       CpuRelax();
     }
   });

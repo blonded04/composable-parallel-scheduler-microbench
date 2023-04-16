@@ -160,5 +160,16 @@ inline void InitParallel(size_t threadsNum) {
   static EigenPinner pinner(threadsNum);
 #endif
 #endif
+#if OMP_MODE == OMP_RUNTIME
+  static InitOnce warmup{[threadsNum]() {
+    ParallelFor(0, threadsNum * threadsNum, [](size_t) {
+      for (size_t i = 0; i != 1000000; ++i) {
+        // do nothing
+        CpuRelax();
+      }
+    });
+  }};
+#else
   static InitOnce warmup{[threadsNum]() { Warmup(threadsNum); }};
+#endif
 }
