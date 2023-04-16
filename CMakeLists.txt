@@ -44,19 +44,6 @@ if (ENABLE_TESTS)
 endif()
 
 
-set(OPENMP_STANDALONE_BUILD TRUE)
-set(LIBOMP_HAVE___RDTSC TRUE)
-set(LIBOMP_HAVE_X86INTRIN_H TRUE)
-FetchContent_Declare(
-  lb4omp
-  GIT_REPOSITORY https://github.com//unibas-dmi-hpc/LB4OMP.git
-)
-
-FetchContent_MakeAvailable(lb4omp)
-add_library(lb4omp SHARED IMPORTED)
-set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
-
-
 find_package(OpenMP REQUIRED)
 
 # link with TBB
@@ -80,7 +67,6 @@ endif()
 list(APPEND OMP_MODES OMP_STATIC
   OMP_DYNAMIC_MONOTONIC OMP_DYNAMIC_NONMONOTONIC
   OMP_GUIDED_MONOTONIC OMP_GUIDED_NONMONOTONIC)
-# list(APPEND OMP_MODES OMP_RUNTIME)
 
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 if($ENV{ENABLE_RAPID})
@@ -89,6 +75,22 @@ if($ENV{ENABLE_RAPID})
 endif()
 list(APPEND EIGEN_MODES EIGEN_SIMPLE EIGEN_TIMESPAN EIGEN_TIMESPAN_GRAINSIZE EIGEN_STATIC)
 list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES})
+
+
+if ($ENV{USE_LB4OMP})
+  set(OPENMP_STANDALONE_BUILD TRUE)
+  set(LIBOMP_HAVE___RDTSC TRUE)
+  set(LIBOMP_HAVE_X86INTRIN_H TRUE)
+  FetchContent_Declare(
+    lb4omp
+    GIT_REPOSITORY https://github.com//unibas-dmi-hpc/LB4OMP.git
+  )
+  FetchContent_MakeAvailable(lb4omp)
+  add_library(lb4omp SHARED IMPORTED)
+  set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
+
+  list(APPEND OMP_MODES OMP_RUNTIME)
+endif()
 
 function(add_target target exec mode)
     add_executable(${target} ${exec})

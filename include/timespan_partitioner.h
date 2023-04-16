@@ -67,7 +67,10 @@ struct Task {
   // currently 0.99 percentile for maximums is used: 99% of iterations should
   // fit scheduling in timespan
 #if defined(__x86_64__)
-    return 530 * GetNumThreads();
+    if (GetNumThreads() == 48) {
+      return 16500;
+    }
+    return 13500;
 #elif defined(__aarch64__)
     return 1800;
 #else
