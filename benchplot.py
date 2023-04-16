@@ -113,9 +113,7 @@ def plot_benchmark(benchmarks, title, verbose):
         for params, bench_results in benchmarks.items():
             min_time = sorted(bench_results.items(), key=lambda x: x[1])[0][1]
             table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results.items()}
-        # make another map:
-        # name -> {params -> time}
-        # then plot it
+
         inverted = {}
         for params, bench_results in benchmarks.items():
             for name, value in bench_results.items():
@@ -123,9 +121,9 @@ def plot_benchmark(benchmarks, title, verbose):
         for name, bench_results in inverted.items():
             bench_results = {k: v for k, v in bench_results.items()}
             ax.plot(bench_results.keys(), bench_results.values(), marker='o', label=name)
-            # ax.set_title('Benchmark Comparison of Libraries')
         ax.set_xlabel('Parameters', fontsize=14)
         ax.set_ylabel('Time, log(us)', fontsize=14)
+        ax.set_title(title)
         ax.legend()
         plt.tight_layout()
         return fig, table_row
