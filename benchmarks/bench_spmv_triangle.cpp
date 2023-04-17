@@ -51,8 +51,8 @@ BENCHMARK(BM_SpmvBenchTriangle)
     ->Arg(1 << 10)
     ->Arg(1 << 12)
     ->Arg(1 << 14)
-    ->Arg(1 << 16)
-    ->Arg(1 << 17)
+    // ->Arg(1 << 16)
+    // ->Arg(1 << 17)
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();
