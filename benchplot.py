@@ -14,10 +14,10 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import AutoMinorLocator
 
 filtered_modes = set()
-# set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-# filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
-filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "EIGEN_TIMESPAN_GRAINSIZE"])
+# filtered_modes = set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+#filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+#filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
+# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_RUNTIME", "OMP_DYNAMIC_NONMONOTONIC", "EIGEN_TIMESPAN_GRAINSIZE"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
@@ -79,7 +79,7 @@ def plot_benchmark(benchmarks, title, verbose):
             params_str = ""
             if params != "":
                 params_str = " with params " + params
-            axis[iter][0].barh(*zip(*bench_results))
+            axis[iter][0].barh(*zip(*bench_results), zorder=3)
             axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
             axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
             table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results}
@@ -92,7 +92,7 @@ def plot_benchmark(benchmarks, title, verbose):
                     title + params_str + ", normalized (higher is better)", fontsize=14
                 )
                 axis[iter][1].barh(
-                    *zip(*[(name, min_time / time) for name, time in bench_results])
+                    *zip(*[(name, min_time / time) for name, time in bench_results]), zorder=3
                 )
                 axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
                 axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
@@ -105,10 +105,15 @@ def plot_benchmark(benchmarks, title, verbose):
                     fig.tight_layout()
                 else:
                     ax.tick_params(axis="both", which="major", labelsize=20)
+                ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+                ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+                ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
+                ax.grid(which='minor', color='#EEEEEE', linewidth=0.5)
         return fig, table_row
     else:
         fig, ax = plt.subplots(figsize=(10, 6))
 
+        styles = itertools.cycle(["-", "--", "-.", ":"])
         table_row = {}
         for params, bench_results in benchmarks.items():
             min_time = sorted(bench_results.items(), key=lambda x: x[1])[0][1]
@@ -120,14 +125,15 @@ def plot_benchmark(benchmarks, title, verbose):
                 inverted.setdefault(name, {})[params] = math.log(value)
         for name, bench_results in inverted.items():
             bench_results = {k: v for k, v in bench_results.items()}
-            ax.plot(bench_results.keys(), bench_results.values(), marker='o', label=name)
+            style = next(styles)
+            ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, label=name)
         ax.set_xlabel('Parameters', fontsize=14)
         ax.set_ylabel('Time, log(us)', fontsize=14)
         ax.set_title(title)
         ax.legend()
         plt.tight_layout()
+        plt.grid()
         return fig, table_row
-
 
 
 def parse_benchmarks(folder_name):
@@ -231,7 +237,14 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
         # round by step to smallest:
         bottom = math.floor(ylimit[0] / step) * step
         bottom = max(bottom, 0)
-        ax.set_yticks(np.arange(bottom, ylimit[1], step))
+        ax.set_xlim(xmin=0)
+        ax.set_yticks(np.arange(bottom + step, ylimit[1], step))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+        ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+        ax.xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+        ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+        ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
+        ax.grid(which='minor', color='#EEEEEE', linewidth=0.5)
     return plots
 
 
@@ -336,7 +349,6 @@ def plot_scheduling_dist(scheduling_dist, verbose):
         # times_end = np.sort(np.asarray(times_end))
         ax.plot(range(len(times)), [time_end] * len(times_end), label="End time")
         ax.legend()
-
     return fig
 
 
