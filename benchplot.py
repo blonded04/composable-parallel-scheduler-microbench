@@ -105,8 +105,6 @@ def plot_benchmark(benchmarks, title, verbose):
                     fig.tight_layout()
                 else:
                     ax.tick_params(axis="both", which="major", labelsize=20)
-                ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
-                ax.yaxis.set_minor_locator(AutoMinorLocator(5))
                 ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
                 ax.grid(which='minor', color='#EEEEEE', linewidth=0.5)
         return fig, table_row
@@ -130,6 +128,8 @@ def plot_benchmark(benchmarks, title, verbose):
         ax.set_xlabel('Parameters', fontsize=14)
         ax.set_ylabel('Time, log(us)', fontsize=14)
         ax.set_title(title)
+        ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+        ax.yaxis.set_minor_locator(AutoMinorLocator(5))
         ax.legend()
         plt.tight_layout()
         plt.grid()
