@@ -161,6 +161,7 @@ inline void InitParallel(size_t threadsNum) {
 #endif
 #endif
 #if OMP_MODE == OMP_RUNTIME
+  // lb4omp doesn't work well with barrier :(
   static InitOnce warmup{[threadsNum]() {
     ParallelFor(0, threadsNum * threadsNum, [](size_t) {
       for (size_t i = 0; i != 1000000; ++i) {

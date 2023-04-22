@@ -8,7 +8,7 @@ endif
 OMP_FLAGS := OMP_MAX_ACTIVE_LEVELS=8 OMP_WAIT_POLICY=active KMP_BLOCKTIME=infinite KMP_AFFINITY="granularity=core,compact" LIBOMP_NUM_HIDDEN_HELPER_THREADS=0
 
 release:
-	cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -C cmake-build-release -j$(shell nproc)
+	USE_LB4OMP=$(LB4OMP) cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -C cmake-build-release -j$(shell nproc)
 
 debug:
 	cmake -B cmake-build-debug -S . -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON && make -C cmake-build-debug -j$(shell nproc)
@@ -23,28 +23,22 @@ bench_dir:
 	mkdir -p raw_results
 
 bench_spmv:
-	@mkdir -p raw_results/spmv
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_spmv* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/spmv/$$x.json; done
+	./run_bench.sh spmv
 
 bench_spin:
-	@mkdir -p raw_results/spin
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_spin* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/spin/$$x.json; done
+	./run_bench.sh spin
 
 bench_reduce:
-	@mkdir -p raw_results/reduce
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_reduce_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/reduce/$$x.json; done
+	./run_bench.sh reduce
 
 bench_scan:
-	@mkdir -p raw_results/scan
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_scan_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/scan/$$x.json; done
+	./run_bench.sh scan
 
 bench_mmul:
-	@mkdir -p raw_results/mmul
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_mmul_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/mmul/$$x.json; done
+	./run_bench.sh mmul
 
 bench_mtranspose:
-	@mkdir -p raw_results/mtranspose
-	@for x in $(shell ls -1 cmake-build-release/benchmarks/bench_mtranspose_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/benchmarks/$$x --benchmark_out_format=json --benchmark_out=raw_results/mtranspose/$$x.json; done
+	./run_bench.sh mtranspose
 
 run_scheduling_dist:
 	@mkdir -p raw_results/scheduling_dist
@@ -57,8 +51,6 @@ run_trace_spin:
 run_timespan_tuner:
 	@for x in $(shell ls -1 cmake-build-release/timespan_tuner/timespan_tuner_* | xargs -n 1 basename | sort ) ; do $(OMP_FLAGS) cmake-build-release/timespan_tuner/$$x; done
 
-bench: clean_bench bench_dir clean release bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose run_trace_spin
-
 bench_tests:
 	@set -e; for x in $(shell ls -1 cmake-build-debug/benchmarks/tests/*tests* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-debug/benchmarks/tests/$$x; done
 
@@ -66,3 +58,21 @@ lib_tests:
 	@set -e; for x in $(shell ls -1 cmake-build-debug/include/tests/*tests* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-debug/include/tests/$$x; done
 
 tests: debug bench_tests lib_tests
+
+install_lb4omp:
+	@cp -n ~/miniconda3/envs/benchmarks/lib/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp-backup.so
+	@cd ~/diploma/LB4OMP && rm -rf build && mkdir build && cd build \
+		&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_HAVE___RDTSC=ON -DLIBOMP_HAVE_X86INTRIN_H=ON .. \
+		&& make && cp runtime/src/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp.so
+
+remove_lb4omp:
+	@cp ~/miniconda3/envs/benchmarks/lib/libomp-backup.so ~/miniconda3/envs/benchmarks/lib/libomp.so
+
+run_benchmarks: clean_bench bench_dir bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose
+
+bench: LB4OMP=0
+bench: clean release run_benchmarks
+
+bench_lb4omp: LB4OMP=1
+bench_lb4omp: clean install_lb4omp release run_benchmarks remove_lb4omp
+
