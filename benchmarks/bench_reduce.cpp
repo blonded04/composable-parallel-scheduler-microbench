@@ -4,8 +4,8 @@
 #include "../include/parallel_for.h"
 
 static constexpr size_t MAX_SIZE = 1 << 24;
-static constexpr size_t BLOCK_SIZE = 1 << 14;
-static constexpr size_t blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
+// static constexpr size_t BLOCK_SIZE = 1 << 14;
+// static constexpr size_t blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
 static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
@@ -15,12 +15,14 @@ static void DoSetup(const benchmark::State &state) {
 static auto data = SPMV::GenVector<double>(MAX_SIZE);
 
 static void BM_ReduceBench(benchmark::State &state) {
+  auto blockSize = state.range(0);
+  auto blocks = (MAX_SIZE + blockSize - 1) / blockSize;
   for (auto _ : state) {
     ParallelFor(0, blocks, [&](size_t i) {
       static thread_local double res = 0;
       double sum = 0;
-      auto start = i * BLOCK_SIZE;
-      auto end = std::min(start, MAX_SIZE - BLOCK_SIZE) + BLOCK_SIZE;
+      auto start = i * blockSize;
+      auto end = std::min(start + blockSize, MAX_SIZE);
       for (size_t j = start; j < end; ++j) {
         sum += data[j];
       }
@@ -34,6 +36,9 @@ BENCHMARK(BM_ReduceBench)
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
+    ->ArgName("blocksize")
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1<<19)
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

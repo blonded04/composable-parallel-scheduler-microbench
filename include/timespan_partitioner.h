@@ -213,12 +213,12 @@ auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
 template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
 void ParallelFor(size_t from, size_t to, F func) {
   Sched sched;
-  auto parentNode = std::make_shared<TaskNode>(nullptr);
+  auto rootNode = std::make_shared<TaskNode>(nullptr);
   auto task = MakeInitialTask<Sched, balance, grainSizeMode>(
-      sched, parentNode, from, to, std::move(func), GetNumThreads());
+      sched, rootNode, from, to, std::move(func), GetNumThreads());
   task();
   sched.join_main_thread();
-  while (!parentNode.unique()) {
+  while (!rootNode.unique()) {
     CpuRelax();
   }
 }

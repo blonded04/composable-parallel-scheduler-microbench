@@ -164,7 +164,7 @@ public:
     tbb::task::spawn(tl);
 #endif
     // TODO(vorkdenis): we shouldn't wait all threads are ready
-    tbb::detail::spin_wait_until_eq(start_mask, mask_t((1ul << n_tasks) - 2));
+    // tbb::detail::spin_wait_until_eq(start_mask, mask_t((1ul << n_tasks) - 2));
   }
   ~RapidStart() {
     mode = 0;

@@ -15,9 +15,12 @@ from matplotlib.ticker import AutoMinorLocator
 
 filtered_modes = set()
 # filtered_modes = set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-#filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-#filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
+# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+# filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
 # filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_RUNTIME", "OMP_DYNAMIC_NONMONOTONIC", "EIGEN_TIMESPAN_GRAINSIZE"])
+
+filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY"])
+filtered_modes.update(["OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_DYNAMIC_MONOTONIC", "OMP_GUIDED_MONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
@@ -121,11 +124,14 @@ def plot_benchmark(benchmarks, title, verbose):
         for params, bench_results in benchmarks.items():
             for name, value in bench_results.items():
                 inverted.setdefault(name, {})[params] = math.log(value)
+        params_str = ""
         for name, bench_results in inverted.items():
-            bench_results = {k: v for k, v in bench_results.items()}
+            if not params_str:
+                params_str = ', '.join([x.split(':')[0] for x in list(bench_results.keys())[0].split(';')])
+            bench_results = {':'.join([x.split(':')[1] for x in k.split(';')]): v for k, v in bench_results.items()}
             style = next(styles)
             ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, label=name)
-        ax.set_xlabel('Parameters', fontsize=14)
+        ax.set_xlabel(f'Params ({params_str})', fontsize=14)
         ax.set_ylabel('Time, log(us)', fontsize=14)
         ax.set_title(title)
         ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
@@ -374,7 +380,7 @@ if __name__ == "__main__":
     res_path = "bench_results"
     if not os.path.exists(res_path):
         os.makedirs(res_path)
-    verbose = not (len(sys.argv) > 1 and sys.argv[1] == "compact")
+    verbose = not (len(sys.argv) > 1 and sys.argv[1] == "--compact")
 
     subdirs = [
         d
