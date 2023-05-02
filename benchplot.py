@@ -19,8 +19,8 @@ filtered_modes = set()
 # filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
 # filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_RUNTIME", "OMP_DYNAMIC_NONMONOTONIC", "EIGEN_TIMESPAN_GRAINSIZE"])
 
-filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY"])
-filtered_modes.update(["OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_DYNAMIC_MONOTONIC", "OMP_GUIDED_MONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY"])
+# filtered_modes.update(["OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_DYNAMIC_MONOTONIC", "OMP_GUIDED_MONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
