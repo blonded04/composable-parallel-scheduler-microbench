@@ -61,7 +61,7 @@ tests: debug bench_tests lib_tests
 
 install_lb4omp:
 	@cp -n ~/miniconda3/envs/benchmarks/lib/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp-backup.so
-	@cd ~/diploma/LB4OMP && rm -rf build && mkdir build && cd build \
+	@cd ../LB4OMP && rm -rf build && mkdir build && cd build \
 		&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_HAVE___RDTSC=ON -DLIBOMP_HAVE_X86INTRIN_H=ON .. \
 		&& make && cp runtime/src/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp.so
 
@@ -74,5 +74,5 @@ bench: LB4OMP=0
 bench: clean release run_benchmarks
 
 bench_lb4omp: LB4OMP=1
-bench_lb4omp: clean install_lb4omp release run_benchmarks remove_lb4omp
+bench_lb4omp: clean install_lb4omp release run_benchmarks run_scheduling_dist remove_lb4omp
 
