@@ -51,8 +51,6 @@ template <typename T> struct IntrusivePtr {
     return *this;
   }
 
-  bool Unique() { return IntrusivePtrLoadRef(Ptr_) == 1; }
-
   void Reset() { IntrusivePtr().swap(*this); }
 
   T &operator*() const noexcept { return *get(); }

@@ -30,7 +30,7 @@ struct SplitData {
 struct TaskNode : intrusive_ref_counter<TaskNode> {
   using NodePtr = IntrusivePtr<TaskNode>;
 
-  TaskNode(NodePtr parent) : Parent(parent) {}
+  TaskNode(NodePtr parent = nullptr) : Parent(std::move(parent)) {}
 
   void SpawnChild(size_t count = 1) {
     ChildWaitingSteal_.fetch_add(count, std::memory_order_relaxed);
@@ -42,11 +42,6 @@ struct TaskNode : intrusive_ref_counter<TaskNode> {
 
   bool AllStolen() {
     return !ChildWaitingSteal_.load(std::memory_order_relaxed);
-  }
-
-  static NodePtr MakeChildNode(NodePtr parent) {
-    parent->SpawnChild();
-    return new TaskNode(parent);
   }
 
   NodePtr Parent;
@@ -81,10 +76,18 @@ struct Task {
 
   using StolenFlag = std::atomic<bool>;
 
-  Task(Scheduler &sched, TaskNode::NodePtr &parent, size_t from, size_t to,
+  TaskNode::NodePtr MakeChildNode(TaskNode::NodePtr &parent) {
+    if constexpr (initial == Initial::TRUE) {
+      return new TaskNode(parent);
+    } else {
+      return parent;
+    }
+  }
+
+  Task(Scheduler &sched, TaskNode::NodePtr node, size_t from, size_t to,
        Func func, SplitData split)
-      : Sched_(sched), CurrentNode_(TaskNode::MakeChildNode(parent)),
-        Current_(from), End_(to), Func_(std::move(func)), Split_(split) {}
+      : Sched_(sched), CurrentNode_(std::move(node)), Current_(from), End_(to),
+        Func_(std::move(func)), Split_(split) {}
 
   bool IsDivisible() const { return Current_ + Split_.GrainSize < End_; }
 
@@ -118,7 +121,8 @@ struct Task {
           assert(otherThreads.From < threadSplit);
           Sched_.run_on_thread(
               Task<Scheduler, Func, balance, grainSizeMode, Initial::TRUE>{
-                  Sched_, CurrentNode_, otherData.From, dataSplit, Func_,
+                  Sched_, new TaskNode(CurrentNode_), otherData.From, dataSplit,
+                  Func_,
                   SplitData{.Threads = {otherThreads.From, threadSplit},
                             .GrainSize = Split_.GrainSize}},
               otherThreads.From);
@@ -199,12 +203,12 @@ private:
 };
 
 template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
-auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
+auto MakeInitialTask(Sched &sched, TaskNode::NodePtr node, size_t from,
                      size_t to, F func, size_t threadCount,
                      size_t grainSize = 1) {
   return Task<Sched, F, balance, grainSizeMode, Initial::TRUE>{
       sched,
-      parent,
+      std::move(node),
       from,
       to,
       std::move(func),
@@ -214,12 +218,15 @@ auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
 template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
 void ParallelFor(size_t from, size_t to, F func) {
   Sched sched;
-  auto rootNode = IntrusivePtr<TaskNode>(new TaskNode(nullptr));
+  // allocating only for top-level nodes
+  TaskNode rootNode;
+  IntrusivePtrAddRef(&rootNode); // avoid deletion
   auto task = MakeInitialTask<Sched, balance, grainSizeMode>(
-      sched, rootNode, from, to, std::move(func), GetNumThreads());
+      sched, IntrusivePtr<TaskNode>(&rootNode), from, to, std::move(func),
+      GetNumThreads());
   task();
   sched.join_main_thread();
-  while (!rootNode.Unique()) {
+  while (IntrusivePtrLoadRef(&rootNode) != 1) {
     CpuRelax();
   }
 }
