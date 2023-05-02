@@ -1,4 +1,5 @@
 #pragma once
+#include "intrusive_ptr.h"
 #include "num_threads.h"
 #include "util.h"
 #include <array>
@@ -26,8 +27,8 @@ struct SplitData {
   size_t Depth = 0;
 };
 
-struct TaskNode {
-  using NodePtr = std::shared_ptr<TaskNode>; // todo: intrusive ptr?
+struct TaskNode : intrusive_ref_counter<TaskNode> {
+  using NodePtr = IntrusivePtr<TaskNode>;
 
   TaskNode(NodePtr parent) : Parent(parent) {}
 
@@ -43,9 +44,9 @@ struct TaskNode {
     return !ChildWaitingSteal_.load(std::memory_order_relaxed);
   }
 
-  static NodePtr MakeChildNode(NodePtr &parent) {
+  static NodePtr MakeChildNode(NodePtr parent) {
     parent->SpawnChild();
-    return std::make_shared<TaskNode>(parent);
+    return new TaskNode(parent);
   }
 
   NodePtr Parent;
@@ -179,7 +180,7 @@ struct Task {
         Execute();
       }
     }
-    CurrentNode_.reset();
+    CurrentNode_.Reset();
   }
 
 private:
@@ -194,7 +195,7 @@ private:
   Func Func_;
   SplitData Split_;
 
-  std::shared_ptr<TaskNode> CurrentNode_;
+  IntrusivePtr<TaskNode> CurrentNode_;
 };
 
 template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
@@ -213,12 +214,12 @@ auto MakeInitialTask(Sched &sched, TaskNode::NodePtr &parent, size_t from,
 template <typename Sched, Balance balance, GrainSize grainSizeMode, typename F>
 void ParallelFor(size_t from, size_t to, F func) {
   Sched sched;
-  auto rootNode = std::make_shared<TaskNode>(nullptr);
+  auto rootNode = IntrusivePtr<TaskNode>(new TaskNode(nullptr));
   auto task = MakeInitialTask<Sched, balance, grainSizeMode>(
       sched, rootNode, from, to, std::move(func), GetNumThreads());
   task();
   sched.join_main_thread();
-  while (!rootNode.unique()) {
+  while (!rootNode.Unique()) {
     CpuRelax();
   }
 }

@@ -68,7 +68,7 @@ install_lb4omp:
 remove_lb4omp:
 	@cp ~/miniconda3/envs/benchmarks/lib/libomp-backup.so ~/miniconda3/envs/benchmarks/lib/libomp.so
 
-run_benchmarks: clean_bench bench_dir bench_spmv bench_spin bench_reduce bench_scan bench_mmul bench_mtranspose
+run_benchmarks: clean_bench bench_dir bench_spmv bench_reduce bench_scan bench_mmul bench_mtranspose
 
 bench: LB4OMP=0
 bench: clean release run_benchmarks
