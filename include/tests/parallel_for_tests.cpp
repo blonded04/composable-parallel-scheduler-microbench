@@ -89,5 +89,6 @@ TEST(ParallelFor, InitialDistribution) {
     barrier.Notify();
     barrier.Wait();
   });
+  EXPECT_EQ(0, GetThreadIndex());
 }
 #endif
