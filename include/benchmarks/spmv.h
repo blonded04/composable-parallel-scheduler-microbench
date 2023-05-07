@@ -259,6 +259,6 @@ template <typename T> DenseMatrix<T> GenDenseMatrix(size_t rows, size_t cols) {
   return out;
 }
 
-inline constexpr size_t MATRIX_SIZE = 1 << 14;
+inline const size_t MATRIX_SIZE = GetNumThreads() * 1 << 9;
 inline constexpr double DENSITY = 1.0 / (1 << 7);
 } // namespace SPMV

@@ -3,7 +3,7 @@
 
 #include "../include/parallel_for.h"
 
-static constexpr size_t MAX_SIZE = 1 << 24;
+static const size_t MAX_SIZE = GetNumThreads() * (1 << 19);
 // static constexpr size_t BLOCK_SIZE = 1 << 14;
 // static constexpr size_t blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
@@ -38,7 +38,7 @@ BENCHMARK(BM_ReduceBench)
     ->MeasureProcessCPUTime()
     ->ArgName("blocksize")
     ->RangeMultiplier(2)
-    ->Range(1 << 10, 1<<19)
+    ->Range(1 << 10, 1 << 19)
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK_MAIN();

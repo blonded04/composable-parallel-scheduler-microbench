@@ -3,7 +3,7 @@
 
 #include "../include/parallel_for.h"
 
-static constexpr size_t MATRIX_SIZE = 1 << 10; // TODO: tune
+static const size_t MATRIX_SIZE = GetNumThreads() * 1 << 5;
 
 static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());

@@ -13,14 +13,33 @@ import os
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import AutoMinorLocator
 
-filtered_modes = set()
-# filtered_modes = set(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE", "TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
-# filtered_modes.update(["EIGEN_STATIC", "EIGEN_SIMPLE", "EIGEN_TIMESPAN", "EIGEN_TIMESPAN_GRAINSIZE"])
-# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY", "OMP_STATIC", "OMP_RUNTIME", "OMP_DYNAMIC_NONMONOTONIC", "EIGEN_TIMESPAN_GRAINSIZE"])
+OMP_MODES = [
+    "OMP_STATIC",
+    "OMP_DYNAMIC_NONMONOTONIC",
+    "OMP_DYNAMIC_MONOTONIC",
+    "OMP_GUIDED_MONOTONIC",
+    "OMP_GUIDED_NONMONOTONIC"
+]
+TBB_MODES = [
+    "TBB_AUTO",
+    "TBB_SIMPLE",
+    "TBB_AFFINITY",
+    "TBB_CONST_AFFINITY"
+]
+EIGEN_MODES = [
+    "EIGEN_SIMPLE",
+    "EIGEN_STATIC",
+    "EIGEN_TIMESPAN",
+    "EIGEN_TIMESPAN_GRAINSIZE"
+]
 
-# filtered_modes.update(["TBB_AUTO", "TBB_SIMPLE", "TBB_AFFINITY"])
-# filtered_modes.update(["OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_DYNAMIC_MONOTONIC", "OMP_GUIDED_MONOTONIC", "OMP_GUIDED_NONMONOTONIC"])
+filtered_modes = set()
+filtered_modes.update(OMP_MODES)
+filtered_modes.update(TBB_MODES)
+filtered_modes.update(EIGEN_MODES)
+# filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE",
+#                        "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC",
+#                        "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
@@ -115,6 +134,9 @@ def plot_benchmark(benchmarks, title, verbose):
         fig, ax = plt.subplots(figsize=(10, 6))
 
         styles = itertools.cycle(["-", "--", "-.", ":"])
+        colors = itertools.cycle("bgrcmk")
+        style = next(styles)
+        color = next(colors)
         table_row = {}
         for params, bench_results in benchmarks.items():
             min_time = sorted(bench_results.items(), key=lambda x: x[1])[0][1]
@@ -125,12 +147,14 @@ def plot_benchmark(benchmarks, title, verbose):
             for name, value in bench_results.items():
                 inverted.setdefault(name, {})[params] = math.log(value)
         params_str = ""
-        for name, bench_results in inverted.items():
+        for name, bench_results in sorted(inverted.items()):
             if not params_str:
                 params_str = ', '.join([x.split(':')[0] for x in list(bench_results.keys())[0].split(';')])
             bench_results = {':'.join([x.split(':')[1] for x in k.split(';')]): v for k, v in bench_results.items()}
-            style = next(styles)
-            ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, label=name)
+            color = next(colors)
+            ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, color=color, label=name)
+            if color == 'k':
+                style = next(styles)
         ax.set_xlabel(f'Params ({params_str})', fontsize=14)
         ax.set_ylabel('Time, log(us)', fontsize=14)
         ax.set_title(title)
@@ -158,7 +182,7 @@ def parse_benchmarks(folder_name):
             if "benchmarks" in bench:
                 if filtered_modes and bench_mode not in filtered_modes:
                     continue
-                # TODO: take not only last bench
+                bench_mode = bench_mode.removeprefix('EIGEN_')
                 for res in bench["benchmarks"]:
                     params = ";".join(
                         x.group()[1:] for x in re.finditer(r"\/\w+:\d+", res["name"])
@@ -197,17 +221,13 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
     style = next(styles)
     color = next(colors)
     max_y = []
-    for bench_type, times in reversed(
-        sorted(min_times, key=lambda x: np.max(np.mean(np.asarray(x[1]), axis=0)))
-    ):
+    for bench_type, times in sorted(min_times):
         # todo: better way to visualize?
         # min time per thread for each idx in range of thread count
         times = np.asarray(times)
         # plot distribution of all times for iterations as scatter around time
         means = np.min(times, axis=0)
         means = np.sort(means, axis=0)
-        if color == "k":
-            style = next(styles)
         color = next(colors)
         _, ax = plots[bench_type.split("_")[0]]
         ax.plot(
@@ -216,6 +236,8 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
         plots["all"][1].plot(
             range(len(means)), means, label=bench_type, linestyle=style, color=color
         )
+        if color == "k":
+            style = next(styles)
         max_y.append(np.max(means))
 
     # ignore most slower method
@@ -285,7 +307,7 @@ def plot_scheduling_dist(scheduling_dist, verbose):
                 idx = thread_count - 1 if thread_id == "-1" else int(thread_id)
                 # data[idx, t["index"]] = 0
                 # fill rectangle by zeros
-                data[idx * task_height : (idx + 1) * task_height, t["index"]] = 0
+                data[idx * task_height:(idx + 1) * task_height, t["index"]] = 0
         ax.set_ylabel("Thread")
         ax.set_xlabel("Task")
         ax.xaxis.set_label_position("top")
@@ -397,6 +419,7 @@ if __name__ == "__main__":
                 bench_mode, measure_mode = bench_mode.rsplit("_", 1)
                 if filtered_modes and bench_mode not in filtered_modes:
                     continue
+                bench_mode = bench_mode.removeprefix('EIGEN_')
                 if measure_mode not in scheduling_times_by_suffix:
                     scheduling_times_by_suffix[measure_mode] = {}
                 scheduling_times_by_suffix[measure_mode][bench_mode] = res["results"]

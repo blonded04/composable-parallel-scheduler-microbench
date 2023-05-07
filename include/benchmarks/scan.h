@@ -17,8 +17,7 @@ inline size_t GetBlockPow(size_t size) {
 // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda
 // NB: now works only for vector with size = 2^k
 template <typename T> void Scan(size_t size_pow, std::vector<T> &data) {
-  auto size = data.size();
-  assert(size == (1 << size_pow));
+  auto size = 1 << size_pow;
   // up-sweep phase
   for (size_t d = 0; d != size_pow; d++) {
     auto shift = (1 << (d + 1));
