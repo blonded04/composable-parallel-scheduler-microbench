@@ -24,7 +24,7 @@ TBB_MODES = [
     "TBB_AUTO",
     "TBB_SIMPLE",
     "TBB_AFFINITY",
-    "TBB_CONST_AFFINITY"
+    # "TBB_CONST_AFFINITY"
 ]
 EIGEN_MODES = [
     "EIGEN_SIMPLE",
@@ -34,12 +34,14 @@ EIGEN_MODES = [
 ]
 
 filtered_modes = set()
-filtered_modes.update(OMP_MODES)
-filtered_modes.update(TBB_MODES)
-filtered_modes.update(EIGEN_MODES)
-# filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE",
-#                        "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC",
-#                        "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO"])
+# filtered_modes.update(OMP_MODES)
+# filtered_modes.update(TBB_MODES)
+# filtered_modes.update(EIGEN_MODES)
+
+# thesis (final):
+filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE",
+                       "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC",
+                       "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO"])
 
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])

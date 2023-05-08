@@ -99,12 +99,18 @@ struct Task {
         auto dataStep = otherData.Size() / parts;
         auto dataMod = otherData.Size() % parts;
         for (size_t i = 0; i != parts; ++i) {
-          auto threadSplit = std::min(otherThreads.To,
-                                      otherThreads.From + threadStep +
-                                          static_cast<size_t>(i < threadsMod));
-          auto dataSplit =
-              std::min(otherData.To, otherData.From + dataStep +
-                                         static_cast<size_t>(i < dataMod));
+          auto threadSplit =
+              std::min(otherThreads.To,
+                       otherThreads.From + threadStep +
+                           static_cast<size_t>((parts - 1 - i) < threadsMod));
+          // if threads are divided equally, distribute one more task for first
+          // parts of threads otherwise distribute one more task for last parts
+          // of threads
+          auto dataSplit = std::min(
+              otherData.To,
+              otherData.From + dataStep +
+                  static_cast<size_t>((threadsMod == 0 ? i : (parts - 1 - i)) <
+                                      dataMod));
           assert(otherData.From < dataSplit);
           assert(otherThreads.From < threadSplit);
           Sched_.run_on_thread(
