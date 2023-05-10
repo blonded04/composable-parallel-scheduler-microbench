@@ -67,13 +67,13 @@ def generate_md_table(benchmarks):
     # ...
     results = {}
     for bench_name, results_by_mode in benchmarks.items():
-        for name, values in results_by_mode.items():
-            results.setdefault(name, {})[bench_name] = values
+        for name, value in results_by_mode.items():
+            results.setdefault(name, {})[bench_name] = value
 
     for name, values in sorted(results.items()):
         row = []
         for col in header_row[1:]:
-            row.append(values.get(col, [""])[0])
+            row.append(values.get(col, [""]))
         table += "| " + name + " | " + " | ".join(row) + " |" + "\n"
     return table
 
@@ -87,6 +87,15 @@ def save_figure(path, fig, name):
 
 # returns new plot
 def plot_benchmark(benchmarks, title, verbose):
+    sums_by_name = {}
+    for params, bench_results in benchmarks.items():
+        for name, res in bench_results.items():
+            sums_by_name.setdefault(name, 0)
+            sums_by_name[name] += res
+    sums_by_name = {k: v / len(benchmarks) for k, v in sums_by_name.items()}
+    min_value = min(sums_by_name.values())
+    table_row = {title: {name: f"{res:.2f} us (x{res / min_value :.2f})" for name, res in sums_by_name.items()}}
+
     params_count = len(benchmarks)
     if params_count == 1:
         fig, axis = plt.subplots(
@@ -96,7 +105,6 @@ def plot_benchmark(benchmarks, title, verbose):
             squeeze=False,
         )
         iter = 0
-        table_row = {}
         for params, bench_results in benchmarks.items():
             bench_results = sorted(bench_results.items(), key=lambda x: x[1])
             min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
@@ -106,7 +114,6 @@ def plot_benchmark(benchmarks, title, verbose):
             axis[iter][0].barh(*zip(*bench_results), zorder=3)
             axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
             axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
-            table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results}
             if verbose:
                 axis[iter][0].set_xlabel(
                     title + params_str + ", absolute time (lower is better), us",
@@ -121,7 +128,6 @@ def plot_benchmark(benchmarks, title, verbose):
                 axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
                 axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
             iter += 1
-
         for axs in axis:
             for ax in axs:
                 if verbose:
@@ -139,11 +145,6 @@ def plot_benchmark(benchmarks, title, verbose):
         colors = itertools.cycle("bgrcmk")
         style = next(styles)
         color = next(colors)
-        table_row = {}
-        for params, bench_results in benchmarks.items():
-            min_time = sorted(bench_results.items(), key=lambda x: x[1])[0][1]
-            table_row[title] = {name: [f"{res:.2f} us (x{res/min_time :.2f})"] for name, res in bench_results.items()}
-
         inverted = {}
         for params, bench_results in benchmarks.items():
             for name, value in bench_results.items():
