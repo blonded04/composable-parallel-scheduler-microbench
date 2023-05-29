@@ -101,7 +101,7 @@ function(add_target target exec mode)
         # because for some reason rpatch looks like "/home/vorkdenis/miniconda3/envs/benchmarks/lib:/home/vorkdenis/diploma/composable-parallel-scheduler-thesis/cmake_deps/lb4omp-build/runtime/src"
         add_custom_command(TARGET ${target}
           POST_BUILD
-          COMMAND sudo patchelf --replace-needed "libomp.so" "${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so" $<TARGET_FILE:${target}>
+          COMMAND patchelf --replace-needed "libomp.so" "${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so" $<TARGET_FILE:${target}>
         )
         target_include_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
         target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
