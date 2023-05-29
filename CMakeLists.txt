@@ -82,9 +82,6 @@ if ($ENV{USE_LB4OMP})
     GIT_REPOSITORY https://github.com/lejabque/LB4OMP.git
   )
   FetchContent_MakeAvailable(lb4omp)
-  add_library(lb4omp SHARED IMPORTED)
-  set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
-
   list(APPEND OMP_MODES OMP_RUNTIME)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 else()
@@ -100,7 +97,6 @@ function(add_target target exec mode)
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
       if ($ENV{USE_LB4OMP})
-        target_link_libraries(${target} lb4omp)
         # tricky patch to prefer built openmp over system's
         # because for some reason rpatch looks like "/home/vorkdenis/miniconda3/envs/benchmarks/lib:/home/vorkdenis/diploma/composable-parallel-scheduler-thesis/cmake_deps/lb4omp-build/runtime/src"
         add_custom_command(TARGET ${target}
