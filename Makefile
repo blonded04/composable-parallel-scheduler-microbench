@@ -8,7 +8,7 @@ endif
 OMP_FLAGS := OMP_MAX_ACTIVE_LEVELS=8 OMP_WAIT_POLICY=active KMP_BLOCKTIME=infinite KMP_AFFINITY="granularity=core,compact" LIBOMP_NUM_HIDDEN_HELPER_THREADS=0
 
 release:
-	USE_LB4OMP=$(LB4OMP) cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -C cmake-build-release -j$(shell nproc)
+	USE_LB4OMP=$(USE_LB4OMP) cmake -B cmake-build-release -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -C cmake-build-release -j$(shell nproc)
 
 debug:
 	cmake -B cmake-build-debug -S . -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON && make -C cmake-build-debug -j$(shell nproc)
@@ -59,20 +59,24 @@ lib_tests:
 
 tests: debug bench_tests lib_tests
 
-install_lb4omp:
-	@cp -n ~/miniconda3/envs/benchmarks/lib/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp-backup.so
-	@cd ../LB4OMP && rm -rf build && mkdir build && cd build \
-		&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_HAVE___RDTSC=ON -DLIBOMP_HAVE_X86INTRIN_H=ON .. \
-		&& make && cp runtime/src/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp.so
+# install_lb4omp:
+#	@cp -n ~/miniconda3/envs/benchmarks/lib/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp-backup.so
+# 	@cd ../LB4OMP && rm -rf build && mkdir build && cd build \
+# 	&& cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLIBOMP_HAVE___RDTSC=ON -DLIBOMP_HAVE_X86INTRIN_H=ON .. \
+# 	&& make
+# && cp runtime/src/libomp.so ~/miniconda3/envs/benchmarks/lib/libomp.so
 
-remove_lb4omp:
-	@cp ~/miniconda3/envs/benchmarks/lib/libomp-backup.so ~/miniconda3/envs/benchmarks/lib/libomp.so
+# remove_lb4omp:
+# 	@cp ~/miniconda3/envs/benchmarks/lib/libomp-backup.so ~/miniconda3/envs/benchmarks/lib/libomp.so
+
 
 run_benchmarks: clean_bench bench_dir bench_spmv bench_reduce bench_scan bench_mmul bench_mtranspose
 
-bench: LB4OMP=0
+bench: USE_LB4OMP=0
 bench: clean release run_benchmarks
 
-bench_lb4omp: LB4OMP=1
-bench_lb4omp: clean install_lb4omp release run_benchmarks run_scheduling_dist remove_lb4omp
+bench_lb4omp: USE_LB4OMP=1
+bench_lb4omp: clean release run_benchmarks run_scheduling_dist
 
+release_lb4omp: USE_LB4OMP=1
+release_lb4omp: clean release

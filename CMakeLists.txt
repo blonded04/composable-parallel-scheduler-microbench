@@ -44,8 +44,6 @@ if (ENABLE_TESTS)
 endif()
 
 
-find_package(OpenMP REQUIRED)
-
 # link with TBB
 FetchContent_Declare(
   onetbb
@@ -81,13 +79,16 @@ if ($ENV{USE_LB4OMP})
   set(LIBOMP_HAVE_X86INTRIN_H TRUE)
   FetchContent_Declare(
     lb4omp
-    GIT_REPOSITORY https://github.com//unibas-dmi-hpc/LB4OMP.git
+    GIT_REPOSITORY https://github.com/lejabque/LB4OMP.git
   )
   FetchContent_MakeAvailable(lb4omp)
   add_library(lb4omp SHARED IMPORTED)
   set_target_properties(lb4omp PROPERTIES IMPORTED_LOCATION ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so)
 
   list(APPEND OMP_MODES OMP_RUNTIME)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+else()
+  find_package(OpenMP REQUIRED)
 endif()
 
 list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES})
@@ -98,13 +99,16 @@ function(add_target target exec mode)
       target_compile_definitions(${target} PRIVATE SERIAL=1)
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
-      if (mode STREQUAL "OMP_RUNTIME")
+      if ($ENV{USE_LB4OMP})
         target_link_libraries(${target} lb4omp)
         # tricky patch to prefer built openmp over system's
+        # because for some reason rpatch looks like "/home/vorkdenis/miniconda3/envs/benchmarks/lib:/home/vorkdenis/diploma/composable-parallel-scheduler-thesis/cmake_deps/lb4omp-build/runtime/src"
         add_custom_command(TARGET ${target}
           POST_BUILD
           COMMAND sudo patchelf --replace-needed "libomp.so" "${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src/libomp.so" $<TARGET_FILE:${target}>
         )
+        target_include_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
+        target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
       else()
         target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
