@@ -41,8 +41,7 @@ bench_mtranspose:
 	./run_bench.sh mtranspose
 
 run_scheduling_dist:
-	@mkdir -p raw_results/scheduling_dist
-	@for x in $(shell ls -1 cmake-build-release/scheduling_dist/scheduling_dist_* | xargs -n 1 basename | sort ) ; do echo "Running $$x"; $(OMP_FLAGS) cmake-build-release/scheduling_dist/$$x > raw_results/scheduling_dist/$$x.json; done
+	./run_sched_dist.sh
 
 run_trace_spin:
 	@mkdir -p raw_results/trace_spin
@@ -76,7 +75,7 @@ bench: USE_LB4OMP=0
 bench: clean release run_benchmarks
 
 bench_lb4omp: USE_LB4OMP=1
-bench_lb4omp: clean release run_benchmarks run_scheduling_dist
+bench_lb4omp: clean release run_benchmarks
 
 release_lb4omp: USE_LB4OMP=1
 release_lb4omp: clean release
