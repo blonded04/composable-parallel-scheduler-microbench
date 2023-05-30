@@ -75,7 +75,7 @@ def generate_md_table(benchmarks):
     for name, values in sorted(results.items()):
         row = []
         for col in header_row[1:]:
-            row.append(values.get(col, [""]))
+            row.append(values.get(col, ""))
         table += "| " + name + " | " + " | ".join(row) + " |" + "\n"
     return table
 
