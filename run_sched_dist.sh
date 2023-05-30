@@ -13,7 +13,7 @@ for x in $(ls -1 ${prefix_path}/scheduling_dist_* | xargs -n 1 basename | grep -
 done
 
 
-lb4ompmodes=("fsc" "fac" "fac2" "wf2" "tap" "mfsc" "tfss" "fiss" "awf" "af")
+lb4ompmodes=("fsc" "fac" "fac2" "tap" "mfsc" "tfss" "fiss" "awf" "af")
 
 
 for x in $(ls -1 ${prefix_path}/scheduling_dist_* | xargs -n 1 basename | grep OMP_RUNTIME); do

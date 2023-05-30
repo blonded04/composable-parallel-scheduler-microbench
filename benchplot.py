@@ -46,6 +46,8 @@ filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE",
 filtered_benchmarks = set()
 # filtered_benchmarks.update(["spmv"])
 
+omp_runtime = True
+
 
 def split_bench_name(s):
     s = s.split("_")
@@ -183,7 +185,7 @@ def parse_benchmarks(folder_name):
             name = bench_file.split(".")[0]
             bench_type, bench_mode = split_bench_name(name)
             if "benchmarks" in bench:
-                if filtered_modes and bench_mode not in filtered_modes:
+                if filtered_modes and bench_mode not in filtered_modes and not (omp_runtime and bench_mode.startswith('OMP_RUNTIME')):
                     continue
                 bench_mode = bench_mode.removeprefix('EIGEN_')
                 for res in bench["benchmarks"]:
