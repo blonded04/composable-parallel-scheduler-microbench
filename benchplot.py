@@ -40,6 +40,8 @@ EIGEN_MODES = [
     "EIGEN_TIMESPAN_GRAINSIZE"
 ]
 
+COLORS = "ybgrcmk"
+
 filtered_modes = set()
 # filtered_modes.update(OMP_MODES)
 # filtered_modes.update(TBB_MODES)
@@ -163,15 +165,15 @@ def plot_benchmark(type, benchmarks, title, verbose):
         fig, ax = plt.subplots(figsize=(10, 6))
 
         styles = itertools.cycle(["-", "--", "-.", ":"])
-        colors = itertools.cycle("bgrcmk")
-        style = next(styles)
-        color = next(colors)
+        colors = itertools.cycle(COLORS)
         inverted = {}
         if "Throughput" == type:
             for params, bench_results in benchmarks.items():
                 for name, value in bench_results.items():
                     inverted.setdefault(name, {})[params] = value
             params_str = ""
+            style = next(styles)
+            color = next(colors)
             for name, bench_results in sorted(inverted.items()):
                 if not params_str:
                     params_str = [x.split(':')[0] for x in list(bench_results.keys())[0].split(';')][0]
@@ -181,9 +183,9 @@ def plot_benchmark(type, benchmarks, title, verbose):
                     bench_results = {str(int([x.split(':')[1] for x in k.split(';')][0]) + 51): v for k, v in bench_results.items()}
                 else:
                     bench_results = {[x.split(':')[1] for x in k.split(';')][0]: v for k, v in bench_results.items()}
-                color = next(colors)
                 ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, color=color, label=name)
-                if color == 'k':
+                color = next(colors)
+                if color == COLORS[0]:
                     style = next(styles)
             ax.set_xlabel(f'Params ({params_str})', fontsize=14)
             ax.set_ylabel('Items', fontsize=14)
@@ -193,6 +195,8 @@ def plot_benchmark(type, benchmarks, title, verbose):
                     # print(name, value, math.log(value))
                     inverted.setdefault(name, {})[params] = math.log10(value)
             params_str = ""
+            style = next(styles)
+            color = next(colors)
             for name, bench_results in sorted(inverted.items()):
                 if not params_str:
                     params_str = ', '.join([x.split(':')[0] for x in list(bench_results.keys())[0].split(';')])
@@ -204,10 +208,10 @@ def plot_benchmark(type, benchmarks, title, verbose):
                     bench_results = {str(int([x.split(':')[1] for x in k.split(';')][0]) + 51): v for k, v in bench_results.items()}
                 else:
                     bench_results = {[x.split(':')[1] for x in k.split(';')][0]: v for k, v in bench_results.items()}
-                color = next(colors)
                 # print(bench_results)
                 ax.plot(bench_results.keys(), bench_results.values(), marker='o', linestyle=style, color=color, label=name)
-                if color == 'k':
+                color = next(colors)
+                if color == COLORS[0]:
                     style = next(styles)
             ax.set_xlabel(f'Params ({params_str})', fontsize=14)
             ax.set_ylabel('Time, log10(us)', fontsize=14)
@@ -276,7 +280,7 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
     runtimes.append("all")
     plots = {runtime: plt.subplots(figsize=(18, 6)) for runtime in runtimes}
     styles = itertools.cycle(["-", "--", "-.", ":"])
-    colors = itertools.cycle("bgrcmk")
+    colors = itertools.cycle(COLORS)
     style = next(styles)
     color = next(colors)
     max_y = []
@@ -287,7 +291,6 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
         # plot distribution of all times for iterations as scatter around time
         means = np.min(times, axis=0)
         means = np.sort(means, axis=0)
-        color = next(colors)
         _, ax = plots[bench_type.split("_")[0]]
         ax.plot(
             range(len(means)), means, label=bench_type, linestyle=style, color=color
@@ -295,7 +298,8 @@ def plot_scheduling_benchmarks(scheduling_times, verbose):
         plots["all"][1].plot(
             range(len(means)), means, label=bench_type, linestyle=style, color=color
         )
-        if color == "k":
+        color = next(colors)
+        if color == COLORS[0]:
             style = next(styles)
         max_y.append(np.max(means))
 
