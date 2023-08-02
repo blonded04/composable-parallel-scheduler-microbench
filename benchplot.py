@@ -102,12 +102,13 @@ def save_figure(path, fig, name):
 def plot_benchmark(type, benchmarks, title, verbose):
     scaled_sums_by_name = {}
     for params, bench_results in benchmarks.items():
-        min_value = min(bench_results.values())
+        max_value = min(bench_results.values())
         for name, res in bench_results.items():
             scaled_sums_by_name.setdefault(name, 0)
-            scaled_sums_by_name[name] += res / min_value
+            scaled_sums_by_name[name] += res / max_value
     # average relative difference with the best solution
-    scaled_sums_by_name = {k: v / len(benchmarks) for k, v in scaled_sums_by_name.items()}
+    min_value = min(scaled_sums_by_name.values())
+    scaled_sums_by_name = {k: v / min_value for k, v in scaled_sums_by_name.items()}
     table_row = {title: {name: f"{res:.2f} us (x{res :.2f})" for name, res in scaled_sums_by_name.items()}}
 
     params_count = len(benchmarks)

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "../parallel_for.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <functional>
 #include <random>
-#include <algorithm>
 #include <type_traits>
 #include <utility>
-#include <functional>
 #include <vector>
 
 #include <mutex>
@@ -48,8 +48,9 @@ T MultiplyRow(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
 }
 
 template <typename T>
-void __attribute__((noinline,noipa)) MultiplyMatrix(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
-                    std::vector<T> &out, size_t grainSize = 1) {
+void __attribute__((noinline, noipa))
+MultiplyMatrix(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
+               std::vector<T> &out, size_t grainSize = 1) {
   assert(A.Dimensions.Columns == x.size());
   ParallelFor(
       0, A.Dimensions.Rows, [&](size_t i) { out[i] = MultiplyRow(A, x, i); },
@@ -57,8 +58,9 @@ void __attribute__((noinline,noipa)) MultiplyMatrix(const SPMV::SparseMatrixCSR<
 }
 
 template <typename T>
-void __attribute__((noinline,noipa)) MultiplyMatrix(const SPMV::DenseMatrix<T> &A, const std::vector<T> &x,
-                    std::vector<T> &out, size_t grainSize = 1) {
+void __attribute__((noinline, noipa))
+MultiplyMatrix(const SPMV::DenseMatrix<T> &A, const std::vector<T> &x,
+               std::vector<T> &out, size_t grainSize = 1) {
   ParallelFor(
       0, A.Dimensions.Rows,
       [&](size_t i) {
@@ -91,8 +93,9 @@ void MultiplyMatrix(const SPMV::DenseMatrix<T> &A,
 }
 
 template <typename T>
-void __attribute__((noinline,noipa)) TransposeMatrix(SPMV::DenseMatrix<T> &input, SPMV::DenseMatrix<T> &out,
-                     size_t blocks = 16, size_t grainSize = 1) {
+void __attribute__((noinline, noipa))
+TransposeMatrix(SPMV::DenseMatrix<T> &input, SPMV::DenseMatrix<T> &out,
+                size_t blocks = 16, size_t grainSize = 1) {
   assert(input.Dimensions.Rows == out.Dimensions.Columns);
   assert(input.Dimensions.Columns == out.Dimensions.Rows);
   auto blocksRows = std::min(blocks, input.Dimensions.Rows);
@@ -160,6 +163,7 @@ inline thread_local std::default_random_engine RandomGenerator{
 template <typename T, SparseKind Kind>
 SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
   assert(0 <= density && density <= 1.0);
+  auto start = std::chrono::high_resolution_clock::now();
 
   SparseMatrixCSR<T> out;
   out.Dimensions.Rows = n;
@@ -216,7 +220,6 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
                   Kind == SparseKind::TRIANGLE);
   }
 
-
   std::sort(positions.begin(), positions.end());
   out.RowIndex.reserve(n + 20);
   out.RowIndex.push_back(0);
@@ -234,6 +237,12 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
     out.RowIndex.push_back(out.ColumnIndex.size());
   }
 
+  std::cout << "Generated sparse matrix " << n << "x" << m << " with "
+            << out.Values.size() << " elements in of kind " << int(Kind)
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::high_resolution_clock::now() - start)
+                   .count()
+            << "ms\n";
   return out;
 }
 
@@ -271,6 +280,7 @@ template <typename T> DenseMatrix<T> GenDenseMatrix(size_t rows, size_t cols) {
   return out;
 }
 
-inline const size_t MATRIX_SIZE = (GetNumThreads() << 9) + (GetNumThreads() << 4) + 7;
+inline const size_t MATRIX_SIZE =
+    (GetNumThreads() << 9) + (GetNumThreads() << 4) + 7;
 inline constexpr double DENSITY = 1.0 / STEP;
 } // namespace SPMV
