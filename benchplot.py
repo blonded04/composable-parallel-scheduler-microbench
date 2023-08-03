@@ -466,7 +466,7 @@ if __name__ == "__main__":
     res_path = "bench_results"
     if not os.path.exists(res_path):
         os.makedirs(res_path)
-    verbose = not (len(sys.argv) > 1 and sys.argv[1] == "--compact")
+    verbose = len(sys.argv) > 1 and sys.argv[1] == "--verbose"
 
     subdirs = [
         d
