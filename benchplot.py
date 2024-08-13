@@ -26,6 +26,18 @@ OMP_MODES = [
     "OMP_DYNAMIC_MONOTONIC",
     "OMP_GUIDED_MONOTONIC",
     "OMP_GUIDED_NONMONOTONIC"
+    "OMP_RUNTIME_af",
+    "OMP_RUNTIME_awf",
+    "OMP_RUNTIME_fac2",
+    "OMP_RUNTIME_fac",
+    "OMP_RUNTIME_mfsc",
+    "OMP_RUNTIME_tap",
+    "OMP_RUNTIME_tfss",
+]
+TASKFLOW_MODES = [
+    "TASKFLOW_GUIDED",
+    "TASKFLOW_DYNAMIC",
+    "TASKFLOW_STATIC"
 ]
 TBB_MODES = [
     "TBB_AUTO",
@@ -48,14 +60,11 @@ filtered_modes = set()
 # filtered_modes.update(EIGEN_MODES)
 
 # thesis (final):
-filtered_modes.update([ # "PROACTIVE_STATIC",
-                       "EIGEN_TIMESPAN_GRAINSIZE", # "EIGEN_STATIC", "EIGEN_TIMESPAN",
-                       "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC", #])
-                       "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO",
-                       "HPX_STATIC", "HPX_AUTO"])
+filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE", "TASKFLOW_DYNAMIC", "TASKFLOW_STATIC"
+                       "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC",
+                       "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO"])
 
 filtered_benchmarks = set()
-# filtered_benchmarks.update(["spmv"])
 
 omp_runtime = True
 

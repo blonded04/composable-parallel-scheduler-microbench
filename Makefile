@@ -72,10 +72,10 @@ tests: debug bench_tests lib_tests
 run_benchmarks: clean_bench bench_dir bench_spmv bench_reduce bench_scan bench_mmul bench_mtranspose
 
 bench: USE_LB4OMP=0
-bench: clean release run_benchmarks
+bench: clean release run_scheduling_dist bench_spin run_benchmarks
 
 bench_lb4omp: USE_LB4OMP=1
-bench_lb4omp: clean release run_benchmarks
+bench_lb4omp: clean release run_scheduling_dist bench_spin run_benchmarks
 
 release_lb4omp: USE_LB4OMP=1
 release_lb4omp: clean release

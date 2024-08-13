@@ -3,10 +3,10 @@ option(ENABLE_TESTS "Enable test" OFF)
 
 # set(CMAKE_C_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang")
 # set(CMAKE_CXX_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang++")
-# set(CMAKE_C_COMPILER "gcc")
-# set(CMAKE_CXX_COMPILER "g++")
-set(CMAKE_C_COMPILER "clang")
-set(CMAKE_CXX_COMPILER "clang++")
+set(CMAKE_C_COMPILER "gcc")
+set(CMAKE_CXX_COMPILER "g++")
+# set(CMAKE_C_COMPILER "clang")
+# set(CMAKE_CXX_COMPILER "clang++")
 
 project(composable-parallel-scheduler)
 
@@ -66,10 +66,19 @@ endif()
 FetchContent_Declare(
   onetbb
   GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
-  GIT_TAG v2021.8.0
+  GIT_TAG v2021.13.0
 )
 option(TBB_TEST OFF)
 FetchContent_MakeAvailable(onetbb)
+
+FetchContent_Declare(
+  taskflow
+  GIT_REPOSITORY https://github.com/taskflow/taskflow.git
+  GIT_TAG master
+)
+option(TF_BUILD_TESTS OFF)
+option(TF_BUILD_EXAMPLES OFF)
+FetchContent_MakeAvailable(taskflow)
 
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps=obj")
 
@@ -85,6 +94,8 @@ endif()
 
 # find_package(Threads)
 # list(APPEND PROACTIVE_MODES PROACTIVE_STATIC)
+
+list(APPEND TASKFLOW_MODES TASKFLOW_GUIDED TASKFLOW_DYNAMIC TASKFLOW_STATIC)
 
 # list(APPEND OMP_MODES OMP_STATIC
 #   OMP_DYNAMIC_MONOTONIC OMP_DYNAMIC_NONMONOTONIC
@@ -119,7 +130,7 @@ endif()
 
 # list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES} ${PROACTIVE_MODES})
 # list(APPEND MODES ${OMP_MODES} ${EIGEN_MODES})
-list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES} ${HPX_MODES})
+list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES} ${TASKFLOW_MODES})
 # list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES})
 
 
@@ -133,6 +144,9 @@ function(add_target target exec mode)
     elseif (mode MATCHES "^HPX")
       target_compile_definitions(${target} PRIVATE HPX_MODE=${mode})
       target_link_libraries(${target} HPX::hpx)
+    elseif (mode MATCHES "^TASKFLOW")
+      target_compile_definitions(${target} PRIVATE TASKFLOW_MODE=${mode})
+      target_link_libraries(${target} Taskflow)
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
       if ($ENV{USE_LB4OMP})
