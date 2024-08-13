@@ -23,8 +23,14 @@ Depenping on runtime, the approtiate way to determine max number of threads will
 You can limit the number of threads by setting the environment variable `BENCH_NUM_THREADS`.
 
 Also [LB4OMP](https://github.com/unibas-dmi-hpc/LB4OMP) runtime was supported, can be executed using `make bench_lb4omp`.
+You can run it via following command:
+```bash
+numactl --cpunodebind 0 make bench_lb4omp
+```
 
 ## Plot results
+You should modify `filtered_modes` list in `./benchplot.py` script to control which modes are about to be plotted
+
 ```bash
 conda activate benchmarks
 python3 benchplot.py # plots benchmark results from ./raw_results and saves images to ./bench_results
