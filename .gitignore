@@ -3,6 +3,7 @@
 .idea
 *.cbp
 .vscode
+.history
 env/
 
 # Google tests
@@ -19,6 +20,7 @@ cmake_install.cmake
 cmake_deps/
 
 # raw benchmark results
-raw_results/
+raw_results
+bench_results
 
 sandbox/
