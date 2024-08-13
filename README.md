@@ -5,8 +5,6 @@ In modern computing systems, the increasing number of cores in processors emphas
 
 Typically, there are two paradigms to achieve that: static and dynamic. The standard static way, used in OpenMP, is just the fork barrier that splits the whole work into the fixed number of presumably "equal" parts, e.g., split into equally-sized ranges for a parallel_for. The classic dynamic approaches are: 1) work-stealing task schedulers like in OneTBB or BOLT, or 2) work-sharing. As one can guess, the static approach has a very low overhead on the work distribution itself, but it does not work well in terms of the distribution optimality of parallel programs for general-purpose tasks, e.g., nested complex parallelism or uneven iterations of parallel_for. Here, we present a task scheduler that unites two discussed dynamic work distribution paradigms at the same time and achieves a low overhead with reasonably good task distribution.
 
-Read more in the [paper draft](./paper/paper.pdf)
-
 ## Install dependencies
 Using conda:
 ```bash

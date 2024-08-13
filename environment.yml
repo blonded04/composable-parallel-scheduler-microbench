@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - make
-  - cmake>=3.15
+  - cmake>=3.18
   - compilers
   - compiler-rt # sanitizers
   - llvm-openmp

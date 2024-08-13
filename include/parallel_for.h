@@ -1,9 +1,11 @@
 #pragma once
 
+#ifdef EIGEN_MODE
 #include "eigen_pool.h"
+#include "timespan_partitioner.h"
+#endif
 #include "modes.h"
 #include "poor_barrier.h"
-#include "timespan_partitioner.h"
 #include "util.h"
 #include <vector>
 #include <algorithm>

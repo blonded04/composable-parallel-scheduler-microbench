@@ -1,6 +1,7 @@
 #pragma once
 #include "parallel_for.h"
 #include "util.h"
+#include "thread_index.h"
 #include <sstream>
 #include <vector>
 #include <unordered_map>

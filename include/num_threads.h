@@ -7,5 +7,5 @@
 
 inline int GetNumThreads() {
   // TODO(blonded04): actually you need a way to programmatically find number of cores on 1 NUMA node
-  return 24;
+  return 4;
 }

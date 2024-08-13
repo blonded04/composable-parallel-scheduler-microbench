@@ -2,7 +2,6 @@
 #include "modes.h"
 // #define EIGEN_MODE EIGEN_TIMESPAN_GRAINSIZE
 
-#include "eigen_pool.h"
 #include "intrusive_ptr.h"
 #include "eigen/mpmc_queue.h"
 #include "num_threads.h"
@@ -101,7 +100,7 @@ struct Task {
   // currently 0.99 percentile for maximums is used: 99% of iterations should
   // fit scheduling in timespan
 #if defined(__x86_64__)
-    if (Eigen::internal::GetNumThreads() == 48) {
+    if (GetNumThreads() == 48) {
       return 16500;
     }
     // return 13500;
@@ -274,7 +273,7 @@ void ParallelFor(size_t from, size_t to, F func) {
         from,
         to,
         std::move(func),
-        SplitData{.Threads = {0, static_cast<size_t>(Eigen::internal::GetNumThreads())},
+        SplitData{.Threads = {0, static_cast<size_t>(GetNumThreads())},
                   .GrainSize = 1}};
     task();
   /*} else {
@@ -284,7 +283,7 @@ void ParallelFor(size_t from, size_t to, F func) {
         from,
         to,
         std::move(func),
-        SplitData{.Threads = {0, static_cast<size_t>(Eigen::internal::GetNumThreads())},
+        SplitData{.Threads = {0, static_cast<size_t>(GetNumThreads())},
                   .GrainSize = 1}};
     task();
   }

@@ -1,10 +1,10 @@
 #pragma once
+#include "modes.h"
+#include "num_threads.h"
+
 #ifdef EIGEN_MODE
 #include "eigen_pool.h"
 #endif
-#include "modes.h"
-#include "num_threads.h"
-#include "thread_index.h"
 
 #include <cstddef>
 #include <iostream>
