@@ -21,24 +21,14 @@ static void BM_ScanBench(benchmark::State &state) {
 
 
 BENCHMARK(BM_ScanBench)
-    ->Name("Scan_Latency_" + GetParallelMode())
-    ->Setup(DoSetup)
-    ->UseRealTime()
-    ->MeasureProcessCPUTime()
-    ->ArgName("SizePow")
-    ->DenseRange(10, SIZE_POW)
-    ->Unit(benchmark::kMicrosecond);
-
-
-BENCHMARK(BM_ScanBench)
     ->Name("Scan_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
     ->ArgName("SizePow")
-    ->DenseRange(12, SIZE_POW)
+    ->DenseRange(10, SIZE_POW, 2)
     ->Unit(benchmark::kMicrosecond)
-    ->MinTime(9);
+    ->MinTime(2);
 
 
 BENCHMARK_MAIN();

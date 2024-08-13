@@ -11,7 +11,7 @@ static void DoSetup(const benchmark::State &state) {
   InitParallel(GetNumThreads());
 }
 
-void __attribute__((noinline,noipa)) reduceImpl(std::vector<double> &data, size_t blocks, size_t blockSize) {
+void __attribute__((noinline)) reduceImpl(std::vector<double> &data, size_t blocks, size_t blockSize) {
   ParallelFor(0, blocks, [&](size_t i) {
     static thread_local double res = 0;
     benchmark::DoNotOptimize(res);
@@ -38,26 +38,15 @@ static void BM_ReduceBench(benchmark::State &state) {
 
 
 BENCHMARK(BM_ReduceBench)
-    ->Name("Reduce_Latency_" + GetParallelMode())
-    ->Setup(DoSetup)
-    ->UseRealTime()
-    ->MeasureProcessCPUTime()
-    ->ArgName("blocksize")
-    ->RangeMultiplier(2)
-    ->Range(1 << 12, 1 << 19)
-    ->Unit(benchmark::kMicrosecond);
-
-
-BENCHMARK(BM_ReduceBench)
     ->Name("Reduce_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
     ->ArgName("blocksize")
-    ->RangeMultiplier(2)
+    ->RangeMultiplier(4)
     ->Range(1 << 12, 1 << 19)
     ->Unit(benchmark::kMicrosecond)
-    ->MinTime(9);
+    ->MinTime(2);
 
 
 BENCHMARK_MAIN();

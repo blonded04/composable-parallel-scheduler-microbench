@@ -22,19 +22,12 @@ static void BM_MatrixMul(benchmark::State &state) {
 
 
 BENCHMARK(BM_MatrixMul)
-    ->Name("MatrixMul_Latency_" + GetParallelMode())
-    ->Setup(DoSetup)
-    ->UseRealTime()
-    ->MeasureProcessCPUTime()
-    ->Unit(benchmark::kMicrosecond);
-
-BENCHMARK(BM_MatrixMul)
     ->Name("MatrixMul_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond)
-    ->MinTime(9);
+    ->MinTime(2);
 
 BENCHMARK_MAIN();
 

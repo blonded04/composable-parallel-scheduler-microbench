@@ -37,7 +37,7 @@ static std::string GetSpinPayload() {
 }
 
 template <typename F>
-void __attribute__((noinline,noipa)) RunParallelFor(Tracing::Tracer &tracer, size_t iters, size_t tasks,
+void __attribute__((noinline)) RunParallelFor(Tracing::Tracer &tracer, size_t iters, size_t tasks,
                     F &&f) {
   for (size_t iter = 0; iter != iters; ++iter) {
     tracer.RunIteration(tasks, f);

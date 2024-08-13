@@ -22,20 +22,12 @@ static void BM_MatrixTranspose(benchmark::State &state) {
 
 
 BENCHMARK(BM_MatrixTranspose)
-    ->Name("MatrixTranspose_Latency_" + GetParallelMode())
-    ->Setup(DoSetup)
-    ->UseRealTime()
-    ->MeasureProcessCPUTime()
-    ->Unit(benchmark::kMicrosecond);
-
-
-BENCHMARK(BM_MatrixTranspose)
     ->Name("MatrixTranspose_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
     ->MeasureProcessCPUTime()
     ->Unit(benchmark::kMicrosecond)
-    ->MinTime(9);
+    ->MinTime(2);
 
 
 BENCHMARK_MAIN();
