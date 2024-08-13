@@ -27,15 +27,11 @@ public:
   template <typename F> void run_on_thread(F &&f, size_t hint) {
     auto task = Eigen::MakeProxyTask(std::forward<F>(f));
     Eigen::Tracing::TaskShared();
-    EigenPool().RunOnThread(Eigen::MakeTask(std::forward<F>(f)), hint);
-    EigenPool().Schedule(task);
+    EigenPool().RunOnThread(task, hint);
+    EigenPool().Schedule(task); // might push twice to the same thread, OK for now
   }
 
-  void join_main_thread() { EigenPool().JoinMainThread(); }
-
-  void wait() {
-    // TODO: implement
-  }
+  bool join_main_thread() { return EigenPool().JoinMainThread(); }
 
   bool execute_something_else() {
     return EigenPool().TryExecuteSomething();

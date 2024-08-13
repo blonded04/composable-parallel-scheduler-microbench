@@ -131,11 +131,11 @@ protected:
   ~intrusive_ref_counter() = default;
 
 private:
-  mutable std::atomic<std::size_t> m_cnt;
+  mutable std::atomic<std::size_t> m_cnt{0};
 };
 
 template <class Derived>
-size_t IntrusivePtrLoadRef(const intrusive_ref_counter<Derived> *p) noexcept {
+std::size_t IntrusivePtrLoadRef(const intrusive_ref_counter<Derived> *p) noexcept {
   return p->m_cnt.load(std::memory_order_acquire);
 }
 

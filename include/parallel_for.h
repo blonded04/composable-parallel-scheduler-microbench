@@ -10,6 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include <cstdio>
 #include <numeric>
 
 #if TBB_MODE == TBB_RAPID

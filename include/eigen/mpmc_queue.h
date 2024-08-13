@@ -44,7 +44,7 @@ namespace mpmc {
 static constexpr size_t hardwareInterferenceSize =
     std::hardware_destructive_interference_size;
 #else
-static constexpr size_t hardwareInterferenceSize = 64;
+static constexpr size_t hardwareInterferenceSize = 128;
 #endif
 
 #if defined(__cpp_aligned_new)

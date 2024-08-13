@@ -26,6 +26,10 @@ You can run it via following command:
 numactl --cpunodebind 0 make bench_lb4omp
 ```
 
+## Changing number of threads
+
+To change number of threads just modify a `GetNumThreads` function body from `./include/num_threads.h` file.
+
 ## Plot results
 You should modify `filtered_modes` list in `./benchplot.py` script to control which modes are about to be plotted
 
