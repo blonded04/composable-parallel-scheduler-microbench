@@ -39,14 +39,14 @@ public:
   __attribute__((always_inline)) inline explicit MaxSizeVector(size_t n)
       : reserve_(n), size_(0),
         data_(static_cast<T *>(
-            internal::handmade_aligned_malloc(n * sizeof(T), alignment))) {}
+            ::internal::handmade_aligned_malloc(n * sizeof(T), alignment))) {}
 
   // Construct a new MaxSizeVector, reserve and resize to n.
   // Copy the init value to all elements.
   __attribute__((always_inline)) inline MaxSizeVector(size_t n, const T &init)
       : reserve_(n), size_(n),
         data_(static_cast<T *>(
-            internal::handmade_aligned_malloc(n * sizeof(T), alignment))) {
+            ::internal::handmade_aligned_malloc(n * sizeof(T), alignment))) {
     size_t i = 0;
     try {
       for (; i < size_; ++i) {
@@ -57,7 +57,7 @@ public:
       for (; (i + 1) > 0; --i) {
         data_[i - 1].~T();
       }
-      internal::handmade_aligned_free(data_);
+      ::internal::handmade_aligned_free(data_);
       throw;
     }
   }
@@ -66,7 +66,7 @@ public:
     for (size_t i = size_; i > 0; --i) {
       data_[i - 1].~T();
     }
-    internal::handmade_aligned_free(data_);
+    ::internal::handmade_aligned_free(data_);
   }
 
   void resize(size_t n) {

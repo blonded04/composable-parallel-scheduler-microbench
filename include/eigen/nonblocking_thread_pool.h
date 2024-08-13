@@ -8,16 +8,23 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#include "mpmc_queue.h"
+#include "../tracing.h"
 #ifndef EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
 #define EIGEN_CXX11_THREADPOOL_NONBLOCKING_THREAD_POOL_H
-#include <memory>
 #define EIGEN_POOL_RUNNEXT
 
 #include "max_size_vector.h"
 #include "run_queue.h"
 #include "stl_thread_env.h"
+#include "../util.h"
+
 #include <atomic>
+#include <cassert>
 #include <functional>
+#include <iostream>
+#include <memory>
+#include <ostream>
 #include <thread>
 
 namespace Eigen {
@@ -43,6 +50,39 @@ template <typename F> Task *MakeTask(F &&f) {
   return new UniqueTask<decltype(std::forward<F>(f))>{std::forward<F>(f)};
 }
 
+/**/
+template <typename F>
+struct ProxyTask : Task {
+  ProxyTask(F&& func)
+    : Func_{std::move(func)}
+  {}
+
+  void operator()() override {
+    // We should enter this function 2 times
+    // prevState:
+    // 0 => first entrance, run Func_
+    // 1 in same thread  => this thread finished Func_ before other thread entered
+    // 1 in other thread => other thread entered function before Func_ is finished
+    // 2 this is the last change of state, drop object
+    auto prevState = State_.fetch_add(1, std::memory_order_seq_cst);
+    if (prevState == 0) {
+      Func_();
+      prevState = State_.fetch_add(1, std::memory_order_seq_cst);
+    }
+    if (prevState == 2) {
+      delete this;
+    }
+  }
+
+  std::decay_t<F> Func_;
+  std::atomic_uint_fast32_t State_ = 0;
+};
+
+template <typename F> Task *MakeProxyTask(F &&f) {
+  return new ProxyTask{std::forward<F>(f)};
+}
+/**/
+
 // This defines an interface that ThreadPoolDevice can take to use
 // custom thread pools underneath.
 class ThreadPoolInterface {
@@ -64,11 +104,11 @@ public:
   virtual void Cancel() {}
 
   // Returns the number of threads in the pool.
-  virtual int NumThreads() const = 0;
+  virtual size_t NumThreads() const = 0;
 
   // Returns a logical thread index between 0 and NumThreads() - 1 if called
   // from one of the threads in the pool. Returns -1 otherwise.
-  virtual int CurrentThreadId() const = 0;
+  virtual size_t CurrentThreadId() const = 0;
 
   virtual ~ThreadPoolInterface() {}
 };
@@ -130,7 +170,7 @@ public:
       // Since we were cancelled, there might be entries in the queues.
       // Empty them to prevent their destructor from asserting.
       for (size_t i = 0; i < thread_data_.size(); i++) {
-        thread_data_[i].queue.Flush();
+        thread_data_[i].Flush();
       }
     }
     // Join threads explicitly (by destroying) to avoid destruction order within
@@ -162,7 +202,7 @@ public:
     threadIndex = threadIndex % num_threads_;
     PerThread *pt = GetPerThread();
     if (!thread_data_[threadIndex].PushTask(
-            t, !(pt && threadIndex == pt->thread_id))) {
+            t, (pt && threadIndex == pt->thread_id))) {
       // failed to push, execute directly
       ExecuteTask(t);
     }
@@ -173,8 +213,7 @@ public:
     bool pushed = false;
     if (pt->pool == this) {
       // Worker thread of this pool, push onto the thread's queue.
-      Queue &q = thread_data_[pt->thread_id].queue;
-      if (q.PushFront(t)) {
+      if (thread_data_[pt->thread_id].PushTask(t, true)) {
         return;
       }
     } else {
@@ -185,8 +224,8 @@ public:
       int num_queues = limit - start;
       int rnd = Rand(&pt->rand) % num_queues;
       assert(start + rnd < limit);
-      Queue &q = thread_data_[start + rnd].queue;
-      if (q.PushBack(t)) {
+      const bool localThread = (start + rnd) == pt->thread_id;
+      if (thread_data_[start + rnd].PushTask(t, localThread)) {
         return;
       }
     }
@@ -212,9 +251,9 @@ public:
 #endif
   }
 
-  int NumThreads() const final { return num_threads_; }
+  size_t NumThreads() const final { return num_threads_; }
 
-  int CurrentThreadId() const final {
+  size_t CurrentThreadId() const final {
     const PerThread *pt = const_cast<ThreadPoolTempl *>(this)->GetPerThread();
     if (pt->pool == this) {
       return pt->thread_id;
@@ -223,11 +262,21 @@ public:
     }
   }
 
-  void JoinMainThread() {
+  // returns true if processed some tasks
+  bool JoinMainThread() {
     if (CurrentThreadId() == -1) {
-      return;
+      return false;
     }
-    WorkerLoop(/* external */ true);
+    return WorkerLoop(/* external */ true);
+  }
+
+  bool TryExecuteSomething() {
+    if (CurrentThreadId() == -1) [[unlikely]] {
+      return false;
+    }
+    constexpr bool External = true;
+    constexpr bool JustOnce = true;
+    return WorkerLoop(External, JustOnce);
   }
 
 private:
@@ -293,10 +342,12 @@ private:
   };
 
   struct ThreadData {
-    constexpr ThreadData() : thread(), steal_partition(0), queue() {}
+    constexpr ThreadData() : thread(), steal_partition(0), local_tasks(), mailbox(1024) {}
     std::unique_ptr<Thread> thread;
     std::atomic<unsigned> steal_partition;
-    Queue queue;
+    Queue local_tasks;
+    rigtorp::mpmc::Queue<TaskPtr> mailbox;
+    std::size_t stack_size = size_t{16} * 1024 * 1024;
 #ifdef EIGEN_POOL_RUNNEXT
     std::atomic<TaskPtr> runnext{nullptr};
     // use IDLE to indicate that the thread is idling and tasks shouldn't be
@@ -304,21 +355,21 @@ private:
     static inline const TaskPtr IDLE = reinterpret_cast<TaskPtr>(1);
 #endif
 
-    bool PushTask(TaskPtr p, bool useRunnext) {
-#ifdef EIGEN_POOL_RUNNEXT
-      if (useRunnext && runnext.load(std::memory_order_relaxed) == nullptr) {
-        TaskPtr expected = nullptr;
-        if (runnext.compare_exchange_strong(expected, p,
-                                            std::memory_order_release)) {
-          return true;
-        }
-        return queue.PushBack(std::move(p));
+    bool PushTask(TaskPtr p, bool localThread) {
+      if (localThread) {
+// #ifdef EIGEN_POOL_RUNNEXT
+//         if (runnext.load(std::memory_order_relaxed) == nullptr) {
+//           TaskPtr expected = nullptr;
+//           if (runnext.compare_exchange_strong(expected, p,
+//                                               std::memory_order_release)) {
+//             return true;
+//           }
+//         }
+// #endif
+        return local_tasks.PushFront(p);
       } else {
-        return queue.PushBack(std::move(p));
+        return mailbox.try_push(p);
       }
-#else
-      t = queue.PushBack(std::move(t));
-#endif
     }
 
     bool SetIdle() {
@@ -344,10 +395,32 @@ private:
         return p;
       }
 #endif
-      return queue.PopFront();
+      if (auto p = local_tasks.PopFront()) {
+        return p;
+      }
+      TaskPtr task = nullptr;
+      mailbox.try_pop(task);
+      return task;
     }
 
-    TaskPtr PopBack() { return queue.PopBack(); }
+    TaskPtr PopBack(bool force) {
+      TaskPtr task = nullptr;
+      mailbox.try_pop(task);
+      if (!task && force) {
+        task = local_tasks.PopBack();
+      }
+      return task;
+    }
+
+    void Flush() {
+      while (!mailbox.empty()) {
+        TaskPtr task = nullptr;
+        mailbox.pop(task);
+      }
+      while (!local_tasks.Empty()) {
+        local_tasks.PopFront();
+      }
+    }
 
 #ifdef EIGEN_POOL_RUNNEXT
     TaskPtr PopRunnext() {
@@ -382,35 +455,55 @@ private:
   std::atomic<bool> done_;
   std::atomic<bool> cancelled_;
 
-  // Main worker thread loop.
-  void WorkerLoop(bool external = false) {
+  // Main worker thread loop. Returns true if processed some tasks
+  bool WorkerLoop(bool external = false, bool once = false) {
     PerThread *pt = GetPerThread();
     auto thread_id = pt->thread_id;
     auto &threadData = thread_data_[thread_id];
+
+    auto can_steal = is_stack_half_full();
+
     threadData.ResetIdle();
+    bool processed_anything = false;
+    bool all_empty = false;
     while (!cancelled_) {
       TaskPtr t = threadData.PopFront();
-      if (!t) {
-        t = LocalSteal();
+      if (!t && (!external || can_steal)) {
+        t = LocalSteal(all_empty);
+        if (t) {
+          Tracing::TaskStolen();
+        }
       }
-      if (!t) {
-        t = GlobalSteal();
+      if (!t && (!external || can_steal)) {
+        t = GlobalSteal(all_empty);
+        if (t) {
+          Tracing::TaskStolen();
+        }
       }
       if (!t && external && threadData.SetIdle()) {
         // external thread shouldn't wait for work, it should just exit.
-        return;
+        return processed_anything;
       }
       if (t) {
         ExecuteTask(t);
+        processed_anything = true;
+        all_empty = false;
       } else if (done_) {
-        return;
+        return processed_anything;
+      } else {
+        all_empty = true;
+      }
+      if (once) {
+        break;
       }
     }
+
+    return processed_anything;
   }
 
   // Steal tries to steal work from other worker threads in the range [start,
   // limit) in best-effort manner.
-  TaskPtr Steal(unsigned start, unsigned limit) {
+  TaskPtr Steal(unsigned start, unsigned limit, bool force) {
     PerThread *pt = GetPerThread();
     const size_t size = limit - start;
     unsigned r = Rand(&pt->rand);
@@ -424,7 +517,7 @@ private:
 
     for (unsigned i = 0; i < size; i++) {
       assert(start + victim < limit);
-      TaskPtr t = thread_data_[start + victim].PopBack();
+      TaskPtr t = thread_data_[start + victim].PopBack(force);
       if (t) {
         return t;
       }
@@ -437,7 +530,7 @@ private:
   }
 
   // Steals work within threads belonging to the partition.
-  TaskPtr LocalSteal() {
+  TaskPtr LocalSteal(bool force) {
     PerThread *pt = GetPerThread();
     unsigned partition = GetStealPartition(pt->thread_id);
     // If thread steal partition is the same as global partition, there is no
@@ -448,11 +541,11 @@ private:
     DecodePartition(partition, &start, &limit);
     AssertBounds(start, limit);
 
-    return Steal(start, limit);
+    return Steal(start, limit, force);
   }
 
   // Steals work from any other thread in the pool.
-  TaskPtr GlobalSteal() { return Steal(0, num_threads_); }
+  TaskPtr GlobalSteal(bool force) { return Steal(0, num_threads_, force); }
 
   int NonEmptyQueueIndex() {
     PerThread *pt = GetPerThread();

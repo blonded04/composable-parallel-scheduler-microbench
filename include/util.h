@@ -1,19 +1,21 @@
 #pragma once
+#ifdef EIGEN_MODE
 #include "eigen_pool.h"
+#endif
 #include "modes.h"
 #include "num_threads.h"
+#include "thread_index.h"
 
 #include <cstddef>
 #include <iostream>
 #include <sched.h>
 #include <string>
 #include <thread>
+#include <cassert>
 #if defined(__x86_64__)
 // for rdtsc
 #include "x86intrin.h"
 #endif
-
-using ThreadId = int;
 
 #ifdef TASKFLOW_MODE
 
@@ -23,25 +25,6 @@ inline tf::Executor& tfExecutor() {
 }
 
 #endif
-
-inline ThreadId GetThreadIndex() {
-  thread_local static int id = [] {
-#if defined(TBB_MODE)
-    return tbb::this_task_arena::current_thread_index();
-#elif defined(OMP_MODE)
-    return omp_get_thread_num();
-#elif defined(SERIAL)
-    return 0;
-#elif defined(EIGEN_MODE)
-    return EigenPool.CurrentThreadId();
-#elif defined(TASKFLOW_MODE)
-    return tfExecutor().this_worker_id();
-#else
-#error "Unsupported mode"
-#endif
-  }();
-  return id;
-}
 
 using Timestamp = uint64_t;
 // using Timestamp = std::chrono::system_clock::time_point;
@@ -100,6 +83,71 @@ inline void PinThread(size_t slot_number) {
     std::cerr << "Error in sched_setaffinity, slot_number = " << slot_number
               << ", err = " << err << std::endl;
   }
+}
+
+namespace detail {
+
+constexpr std::size_t StackSize = std::size_t{16} * 1024 * 1024;
+
+struct StackBase {
+  StackBase() noexcept {
+    // Stacks are growing top-down. Highest address is called "stack base",
+    // and the lowest is "stack limit".
+#if __TBB_USE_WINAPI
+    suppress_unused_warning(stack_size);
+    NT_TIB* pteb = (NT_TIB*)NtCurrentTeb();
+    __TBB_ASSERT(&pteb < pteb->StackBase && &pteb > pteb->StackLimit, "invalid stack info in TEB");
+    return reinterpret_cast<std::uintptr_t>(pteb->StackBase);
+#else
+    // There is no portable way to get stack base address in Posix, so we use
+    // non-portable method (on all modern Linux) or the simplified approach
+    // based on the common sense assumptions. The most important assumption
+    // is that the main thread's stack size is not less than that of other threads.
+
+    // Points to the lowest addressable byte of a stack.
+    void* stack_limit = nullptr;
+#if __linux__ && !__bg__
+    pthread_attr_t np_attr_stack;
+    if (0 == pthread_getattr_np(pthread_self(), &np_attr_stack)) {
+        if (0 == pthread_attr_getstack(&np_attr_stack, &stack_limit, &size_)) {
+            assert( &stack_limit > stack_limit && "stack size must be positive" );
+        }
+        pthread_attr_destroy(&np_attr_stack);
+    }
+#endif /* __linux__ */
+    if (stack_limit) {
+        base_ = reinterpret_cast<std::uintptr_t>(stack_limit) + size_;
+    } else {
+        // Use an anchor as a base stack address.
+        int anchor{};
+        base_ = reinterpret_cast<std::uintptr_t>(&anchor);
+    }
+    // std::cerr << "stack_base: " << std::hex << base_ << ", stack_limit: " << stack_limit <<
+    //              ", stack size: " << std::dec << (size_ / 1024) << "KB" << std::endl;
+#endif /* __TBB_USE_WINAPI */
+  }
+
+  std::uintptr_t calculate_stack_half() {
+    assert(size_ != 0 && "Stack size cannot be zero");
+    assert(base_ > size_ / 2 && "Stack anchor calculation overflow");
+    return base_ - size_ / 2;
+  }
+
+  std::uintptr_t base_ = 0;
+  std::size_t size_ = 0;
+};
+
+}
+
+inline bool is_stack_half_full() {
+  static thread_local detail::StackBase stack_base;
+
+  auto stack_half = stack_base.calculate_stack_half();
+  int anchor = 0;
+  auto anchor_ptr = reinterpret_cast<std::uintptr_t>(&anchor);
+  // std::cerr << "stack size: " << std::dec << ((stack_base.base_ - anchor_ptr) / 1024) << "KB"\
+  //           << ", anchor: " << std::hex << anchor_ptr << ", base: " << stack_base.base_ << ", half: " << stack_half << std::endl;
+  return anchor_ptr < stack_half;
 }
 
 #ifdef __cpp_lib_hardware_interference_size
