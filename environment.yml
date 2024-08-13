@@ -18,6 +18,7 @@ dependencies:
   - ipykernel
   - elfutils
   - patchelf
+  - jemalloc
   # - libclang-cpp
   # - libcxx
   # - libstdcxx-ng
