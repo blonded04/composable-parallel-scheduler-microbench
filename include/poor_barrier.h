@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdio>
 
 #include "util.h"
 
@@ -17,7 +18,7 @@ struct SpinBarrier {
 
       ++spins;
       if (spins == 10000000) {
-        printf("%lu remaining...\n", remain_);
+        std::printf("%lu remaining...\n", remain_.load());
         spins = 0;
       }
     }
