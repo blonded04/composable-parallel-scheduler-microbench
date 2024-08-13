@@ -16,7 +16,7 @@ conda activate benchmarks
 
 ## Build & Run
 ```bash
-numactl --cpunodebind 0 make bench # build, runs benchmarks and saves results to ./bench_results
+numactl --cpunodebind 0 make bench # build, runs benchmarks and saves results to ./raw_results
 ```
 
 Depenping on runtime, the approtiate way to determine max number of threads will be used.
@@ -27,5 +27,5 @@ Also [LB4OMP](https://github.com/unibas-dmi-hpc/LB4OMP) runtime was supported, c
 ## Plot results
 ```bash
 conda activate benchmarks
-python3 benchplot.py # plots benchmark results and saves images to ./bench_results/images
+python3 benchplot.py # plots benchmark results from ./raw_results and saves images to ./bench_results
 ```
