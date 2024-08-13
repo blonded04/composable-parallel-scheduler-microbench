@@ -48,7 +48,7 @@ T MultiplyRow(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
 }
 
 template <typename T>
-void __attribute__((noinline, noipa))
+void __attribute__((noinline))
 MultiplyMatrix(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
                std::vector<T> &out, size_t grainSize = 1) {
   assert(A.Dimensions.Columns == x.size());
@@ -58,7 +58,7 @@ MultiplyMatrix(const SPMV::SparseMatrixCSR<T> &A, const std::vector<T> &x,
 }
 
 template <typename T>
-void __attribute__((noinline, noipa))
+void __attribute__((noinline))
 MultiplyMatrix(const SPMV::DenseMatrix<T> &A, const std::vector<T> &x,
                std::vector<T> &out, size_t grainSize = 1) {
   ParallelFor(
@@ -93,7 +93,7 @@ void MultiplyMatrix(const SPMV::DenseMatrix<T> &A,
 }
 
 template <typename T>
-void __attribute__((noinline, noipa))
+void __attribute__((noinline))
 TransposeMatrix(SPMV::DenseMatrix<T> &input, SPMV::DenseMatrix<T> &out,
                 size_t blocks = 16, size_t grainSize = 1) {
   assert(input.Dimensions.Rows == out.Dimensions.Columns);

@@ -16,7 +16,7 @@ conda activate benchmarks
 
 ## Build & Run
 ```bash
-make bench # build, runs benchmarks and saves results to ./bench_results
+numactl --cpunodebind 0 make bench # build, runs benchmarks and saves results to ./bench_results
 ```
 
 Depenping on runtime, the approtiate way to determine max number of threads will be used.

@@ -15,6 +15,15 @@
 
 using ThreadId = int;
 
+#ifdef TASKFLOW_MODE
+
+inline tf::Executor& tfExecutor() {
+  static tf::Executor exec(GetNumThreads());
+  return exec;
+}
+
+#endif
+
 inline ThreadId GetThreadIndex() {
   thread_local static int id = [] {
 #if defined(TBB_MODE)
@@ -25,6 +34,8 @@ inline ThreadId GetThreadIndex() {
     return 0;
 #elif defined(EIGEN_MODE)
     return EigenPool.CurrentThreadId();
+#elif defined(TASKFLOW_MODE)
+    return tfExecutor().this_worker_id();
 #else
 #error "Unsupported mode"
 #endif
@@ -95,6 +106,6 @@ inline void PinThread(size_t slot_number) {
 using std::hardware_constructive_interference_size;
 using std::hardware_destructive_interference_size;
 #else
-constexpr std::size_t hardware_constructive_interference_size = 64;
-constexpr std::size_t hardware_destructive_interference_size = 64;
+constexpr std::size_t hardware_constructive_interference_size = 128;
+constexpr std::size_t hardware_destructive_interference_size = 128;
 #endif

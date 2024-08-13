@@ -13,6 +13,8 @@ inline std::string GetParallelMode() {
   return STR(OMP_MODE);
 #elif defined(EIGEN_MODE)
   return STR(EIGEN_MODE);
+#elif defined(TASKFLOW_MODE)
+  return STR(TASKFLOW_MODE);
 #else
   static_assert(false, "Unsupported mode");
 #endif
@@ -37,8 +39,17 @@ inline std::string GetParallelMode() {
 #define EIGEN_STATIC 4
 #define EIGEN_TIMESPAN_GRAINSIZE 5
 
+#define TASKFLOW_GUIDED 1
+#define TASKFLOW_DYNAMIC 2
+#define TASFKLOW_STATIC 3
+
 #ifdef TBB_MODE
 #include <tbb/parallel_for.h>
+#endif
+
+#ifdef TASKFLOW_MODE
+#include <taskflow/taskflow.hpp>
+#include <taskflow/for_each.hpp>
 #endif
 
 #ifdef OMP_MODE

@@ -91,6 +91,22 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
 #else
   static_assert("unsupported HPX_MODE");
 #endif
+#elif defined(TASKFLOW_MODE)
+  tf::Taskflow tf;
+
+#if TASKFLOW_MODE == TASKFLOW_GUIDED
+  tf::GuidedPartitioner part(grainSize);  
+#elif TASKFLOW_MODE == TASKFLOW_DYNAMIC
+  tf::DynamicPartitioner part(grainSize);
+#elif TASKFLOW_MODE == TASKFLOW_STATIC
+  tf::StaticPartitioner part(grainSize);
+#else
+  static_assert(false, "Invalid TASKFLOW_MODE value");
+#endif
+
+  tf.for_each_index(from, to, static_cast<size_t>(1), std::forward<Func>(func), part);
+  tfExecutor().run(tf).wait();
+
 #elif defined(TBB_MODE)
   static tbb::task_group_context context(
       tbb::task_group_context::bound,
