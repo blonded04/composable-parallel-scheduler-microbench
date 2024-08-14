@@ -49,7 +49,7 @@ inline std::string GetParallelMode() {
 
 #ifdef TASKFLOW_MODE
 #include <taskflow/taskflow.hpp>
-#include <taskflow/for_each.hpp>
+#include <taskflow/algorithm/for_each.hpp>
 #endif
 
 #ifdef OMP_MODE
