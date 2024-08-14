@@ -17,7 +17,6 @@ static constexpr auto width =
 static auto cachedMatrix = [] {
   std::unordered_map<size_t, SparseMatrixCSR<double>> res;
   for (auto &&w : width) {
-    std::cout << "generating for " << w << std::endl;
     res[w] =
         GenSparseMatrix<double, SparseKind::BALANCED>(MATRIX_SIZE, w + (GetNumThreads() << 2) + 3, DENSITY);
     benchmark::DoNotOptimize(res[w]);
@@ -39,7 +38,7 @@ static void BM_SpmvBenchBalanced(benchmark::State &state) {
   }
 }
 
-
+#ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchBalanced)
     ->Name("SpmvBalanced_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
@@ -53,4 +52,7 @@ BENCHMARK(BM_SpmvBenchBalanced)
 
 
 BENCHMARK_MAIN();
+#else
+int main() {}
+#endif
 

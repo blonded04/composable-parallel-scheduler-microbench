@@ -38,6 +38,7 @@ static void BM_SpmvBenchHyperbolic(benchmark::State &state) {
 }
 
 
+#ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchHyperbolic)
     ->Name("SpmvHyperbolic_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
@@ -51,4 +52,6 @@ BENCHMARK(BM_SpmvBenchHyperbolic)
 
 
 BENCHMARK_MAIN();
-
+#else
+int main() {}
+#endif

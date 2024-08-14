@@ -21,6 +21,7 @@ static void BM_MatrixMul(benchmark::State &state) {
 }
 
 
+#ifndef TASKFLOW_MODE
 BENCHMARK(BM_MatrixMul)
     ->Name("MatrixMul_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
@@ -30,5 +31,7 @@ BENCHMARK(BM_MatrixMul)
     ->MinTime(2);
 
 BENCHMARK_MAIN();
-
+#else
+int main() {}
+#endif
 

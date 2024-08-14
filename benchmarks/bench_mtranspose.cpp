@@ -21,6 +21,7 @@ static void BM_MatrixTranspose(benchmark::State &state) {
 }
 
 
+#ifndef TASKFLOW_MODE
 BENCHMARK(BM_MatrixTranspose)
     ->Name("MatrixTranspose_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
@@ -31,5 +32,7 @@ BENCHMARK(BM_MatrixTranspose)
 
 
 BENCHMARK_MAIN();
-
+#else
+int main() {}
+#endif
 

@@ -38,6 +38,7 @@ static void BM_SpmvBenchTriangle(benchmark::State &state) {
 }
 
 
+#ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchTriangle)
     ->Name("SpmvTriangle_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
@@ -51,4 +52,6 @@ BENCHMARK(BM_SpmvBenchTriangle)
 
 
 BENCHMARK_MAIN();
-
+#else
+int main() {}
+#endif

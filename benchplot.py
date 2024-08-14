@@ -198,7 +198,7 @@ def plot_benchmark(type, benchmarks, title, verbose):
                 if color == COLORS[0]:
                     style = next(styles)
             ax.set_xlabel(f'Params ({params_str})', fontsize=14)
-            ax.set_ylabel('Items', fontsize=14)
+            ax.set_ylabel('Units processed per second', fontsize=14)
         else:
             for params, bench_results in benchmarks.items():
                 for name, value in bench_results.items():
@@ -224,7 +224,7 @@ def plot_benchmark(type, benchmarks, title, verbose):
                 if color == COLORS[0]:
                     style = next(styles)
             ax.set_xlabel(f'Params ({params_str})', fontsize=14)
-            ax.set_ylabel('Time, log10(us)', fontsize=14)
+            ax.set_ylabel('Latency, log10(us)', fontsize=14)
         ax.set_title(title)
         ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=12))
         ax.yaxis.set_minor_locator(AutoMinorLocator(5))
@@ -262,7 +262,7 @@ def parse_benchmarks(folder_name):
                     else:
                         benchmarks_by_type[1].setdefault(bench_type, {}).setdefault(
                             params, {}
-                        )[bench_mode] = 9000000 / res["real_time"]
+                        )[bench_mode] = 1000000 / res["real_time"]
             else:
                 benchmarks_by_type[0].setdefault(bench_type, {}).setdefault("", {})[
                     bench_mode
