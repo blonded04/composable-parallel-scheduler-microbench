@@ -2,19 +2,17 @@
 #include "modes.h"
 // #define EIGEN_MODE EIGEN_TIMESPAN_GRAINSIZE
 
+#include "eigen_pool.h"
 #include "intrusive_ptr.h"
-#include "eigen/mpmc_queue.h"
+#include "modes.h"
 #include "num_threads.h"
 #include "thread_index.h"
 #include "util.h"
-#include <array>
+
 #include <atomic>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <cstdlib>
-#include <memory>
-#include <string>
 #include <utility>
 
 namespace EigenPartitioner {
@@ -84,16 +82,16 @@ struct TaskNode : intrusive_ref_counter<TaskNode> {
   std::atomic<size_t> ChildWaitingSteal_{0};
 };
 
-enum class Balance { OFF, SIMPLE, DELAYED };
-
 enum class Initial { TRUE, FALSE };
 
-enum class GrainSize { DEFAULT, AUTO };
+enum class Sharing { ENABLED, DISABLED };
 
-template <typename Func, Balance balance,
-          GrainSize grainSizeMode, Initial initial = Initial::FALSE>
+enum class Balancing { STATIC, TIMESPAN };
+
+template <Sharing SharingPolicy, Balancing BalancingPolicy, typename F>
 struct Task {
   using Scheduler = EigenPoolWrapper;
+  using Func = std::decay_t<F>;
 
   static inline const uint64_t INIT_TIME = [] {
   // should be calculated using timespan_tuner with EIGEN_SIMPLE
@@ -104,7 +102,7 @@ struct Task {
       return 16500;
     }
     // return 13500;
-    return 75000000;
+    return 205000;
 #elif defined(__aarch64__)
     return 1800;
 #else
@@ -161,7 +159,7 @@ struct Task {
           IntrusivePtr newNodePtr{newNode};
 
           Sched_.run_on_thread(
-              Task<Func, balance, grainSizeMode, Initial::TRUE>{
+              Task<SharingPolicy, BalancingPolicy, Func>{
                   Sched_, std::move(newNodePtr), otherData.From, dataSplit,
                   Func_,
                   SplitData{.Threads = {otherThreads.From, threadSplit},
@@ -183,44 +181,39 @@ struct Task {
     detail::TaskStack ts;
     auto& stack = detail::ThreadLocalTaskStack();
     stack.Add(ts);
-    if constexpr (initial == Initial::TRUE) {
+    if constexpr (SharingPolicy == Sharing::ENABLED) {
       DistributeWork();
     }
 
-    if constexpr (balance == Balance::DELAYED) {
+    if constexpr (BalancingPolicy == Balancing::TIMESPAN) {
       // at first we are executing job for INIT_TIME
       // and then create balancing task
+      Split_.GrainSize = 1;
       auto start = Now();
       while (Current_ < End_) {
         Execute();
         if (Now() - start > INIT_TIME) {
           break;
         }
-        if constexpr (grainSizeMode == GrainSize::AUTO) {
-          Split_.GrainSize++;
-        }
+        Split_.GrainSize++;
       }
     }
 
-    if constexpr (balance != Balance::OFF) {
-      while (Current_ != End_ && IsDivisible()) {
-        // make balancing tasks for remaining iterations
-        // TODO: check stolen? maybe not each time?
-        // if (CurrentNode_->AllStolen()) {
-        // TODO: maybe we need to check "depth" - number of being stolen
-        // times?
-        size_t mid = Current_ + (End_ - Current_) / 2;
-        // CurrentNode_->SpawnChild();
-        // eigen's scheduler will push task to the current thread queue,
-        // then some other thread can steal this
-        auto nodeRaw = aligned_alloc(alignof(TaskNode), sizeof(TaskNode));
-        auto* newNode = new(nodeRaw) TaskNode{CurrentNode_};
-        IntrusivePtr<TaskNode> nodePtr{newNode};
-        Sched_.run(Task<Func, Balance::SIMPLE, GrainSize::DEFAULT>{
-            Sched_, std::move(nodePtr), mid, End_, Func_,
-            SplitData{.GrainSize = Split_.GrainSize, .Depth = Split_.Depth + 1}});
-        End_ = mid;
-      }
+    while (Current_ != End_ && IsDivisible()) {
+      // make balancing tasks for remaining iterations
+      // TODO: check stolen? maybe not each time?
+      // if (CurrentNode_->AllStolen()) {
+      // TODO: maybe we need to check "depth" - number of being stolen
+      // times?
+      size_t mid = Current_ + (End_ - Current_) / 2;
+      // CurrentNode_->SpawnChild();
+      // eigen's scheduler will push task to the current thread queue,
+      // then some other thread can steal this
+      IntrusivePtr<TaskNode> nodePtr{new TaskNode{CurrentNode_}};
+      Sched_.run(Task<Sharing::DISABLED, Balancing::STATIC, Func>{ // already shared and counted grainsize
+          Sched_, std::move(nodePtr), mid, End_, Func_,
+          SplitData{.GrainSize = Split_.GrainSize, .Depth = Split_.Depth + 1}});
+      End_ = mid;
     }
 
     while (Current_ != End_) {
@@ -245,54 +238,6 @@ private:
 
   IntrusivePtr<TaskNode> CurrentNode_;
 };
-
-template <Balance balance, GrainSize grainSizeMode, typename F>
-auto MakeInitialTask(EigenPoolWrapper &sched, TaskNode::NodePtr node, size_t from,
-                     size_t to, F func, size_t threadCount,
-                     size_t grainSize = 1) {
-  return Task<F, balance, grainSizeMode, Initial::TRUE>{
-      sched,
-      std::move(node),
-      from,
-      to,
-      std::move(func),
-      SplitData{.Threads = {0, threadCount}, .GrainSize = grainSize},
-      GetThreadIndex()};
-}
-
-template <Balance balance, GrainSize grainSizeMode, typename F>
-void ParallelFor(size_t from, size_t to, F func) {
-  EigenPoolWrapper sched;
-  // allocating only for top-level nodes
-  TaskNode rootNode;
-  IntrusivePtrAddRef(&rootNode); // avoid deletion
-  // if (detail::ThreadLocalTaskStack().IsEmpty()) {
-    Task<F, balance, grainSizeMode, Initial::TRUE> task{
-        sched,
-        IntrusivePtr<TaskNode>(&rootNode),
-        from,
-        to,
-        std::move(func),
-        SplitData{.Threads = {0, static_cast<size_t>(GetNumThreads())},
-                  .GrainSize = 1}};
-    task();
-  /*} else {
-    Task<F, balance, grainSizeMode, Initial::FALSE> task{
-        sched,
-        IntrusivePtr<TaskNode>(&rootNode),
-        from,
-        to,
-        std::move(func),
-        SplitData{.Threads = {0, static_cast<size_t>(GetNumThreads())},
-                  .GrainSize = 1}};
-    task();
-  }
-  */
-
-  while (IntrusivePtrLoadRef(&rootNode) != 1) {
-    sched.execute_something_else();
-  }
-}
 
 namespace detail {
 
@@ -324,22 +269,76 @@ void ParallelDo(F1&& fst, F2&& sec) {
   }
 }
 
-template <typename Sched, GrainSize grainSizeMode, typename F>
-void ParallelForTimespan(size_t from, size_t to, F func) {
-  ParallelFor<Balance::DELAYED, grainSizeMode, F>(from, to,
-                                                         std::move(func));
+namespace detail {
+
+template <int Mode>
+struct ParForTraits;
+
+template <>
+struct ParForTraits<EIGEN_STEALING> {
+  static constexpr Balancing BalancingPolicy = Balancing::STATIC;
+  static constexpr Sharing SharingPolicy = Sharing::DISABLED;
+};
+
+template <>
+struct ParForTraits<EIGEN_SHARING> {
+  static constexpr Balancing BalancingPolicy = Balancing::STATIC;
+  static constexpr Sharing SharingPolicy = Sharing::ENABLED;
+};
+
+template <>
+struct ParForTraits<EIGEN_STEALING_GRAINSIZE> {
+  static constexpr Balancing BalancingPolicy = Balancing::TIMESPAN;
+  static constexpr Sharing SharingPolicy = Sharing::DISABLED;
+};
+
+template <>
+struct ParForTraits<EIGEN_SHARING_STEALING> {
+  static constexpr Balancing BalancingPolicy = Balancing::TIMESPAN;
+  static constexpr Sharing SharingPolicy = Sharing::ENABLED;
+};
+
+
+} // namespace detail
+
+template <int Mode, typename F>
+void ParallelFor(size_t from, size_t to, F&& func, size_t grainsize) {
+  using Traits = detail::ParForTraits<Mode>;
+  EigenPoolWrapper sched;
+  // allocating only for top-level nodes
+  TaskNode rootNode;
+  IntrusivePtrAddRef(&rootNode); // avoid deletion
+  SplitData splitData{
+    .Threads = {0, static_cast<size_t>(Eigen::internal::GetNumThreads())},
+    .GrainSize = grainsize,
+  };
+  if (detail::ThreadLocalTaskStack().IsEmpty()) {
+    Task<Traits::SharingPolicy, Traits::BalancingPolicy, F> task{
+        sched,
+        IntrusivePtr<TaskNode>(&rootNode),
+        from, to,
+        std::forward<F>(func),
+        splitData};
+    task();
+  } else {
+    Task<Sharing::DISABLED, Traits::BalancingPolicy, F> task{
+        sched,
+        IntrusivePtr<TaskNode>(&rootNode),
+        from, to,
+        std::forward<F>(func),
+        splitData};
+    task();
+  }
+
+  while (IntrusivePtrLoadRef(&rootNode) != 1) {
+    sched.execute_something_else();
+  }
 }
 
-template <typename Sched, typename F>
-void ParallelForSimple(size_t from, size_t to, F func) {
-  ParallelFor<Balance::SIMPLE, GrainSize::DEFAULT, F>(from, to,
-                                                             std::move(func));
-}
-
-template <typename Sched, typename F>
-void ParallelForStatic(size_t from, size_t to, F func) {
-  ParallelFor<Balance::OFF, GrainSize::DEFAULT, F>(from, to,
-                                                          std::move(func));
+template <typename Func>
+void ParallelFor(size_t from, size_t to, Func&& func, size_t grainsize = 1) {
+  grainsize = std::max(grainsize, size_t{1});
+  return ParallelFor<EIGEN_MODE>(from, to, std::forward<Func>(func), grainsize);
 }
 
 } // namespace EigenPartitioner

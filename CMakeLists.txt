@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.15)
-option(ENABLE_TESTS "Enable test" OFF)
+option(ENABLE_TESTS "Enable test" ON)
 
 # set(CMAKE_C_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang")
 # set(CMAKE_CXX_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang++")
@@ -40,7 +40,7 @@ message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 include(FetchContent)
-set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
+# set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
 
 if (ENABLE_TESTS)
     # gtest
@@ -72,14 +72,7 @@ FetchContent_Declare(
 option(TBB_TEST OFF)
 FetchContent_MakeAvailable(onetbb)
 
-FetchContent_Declare(
-  taskflow
-  GIT_REPOSITORY https://github.com/taskflow/taskflow.git
-  GIT_TAG master
-)
-option(TF_BUILD_TESTS OFF)
-option(TF_BUILD_EXAMPLES OFF)
-FetchContent_MakeAvailable(taskflow)
+find_package(Taskflow REQUIRED)
 
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps=obj")
 
@@ -107,12 +100,8 @@ list(APPEND OMP_MODES OMP_STATIC
 
 # list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY)
-if($ENV{ENABLE_RAPID})
-  list(APPEND TBB_MODES TBB_RAPID)
-  list(APPEND EIGEN_MODES EIGEN_RAPID)
-endif()
-# list(APPEND EIGEN_MODES EIGEN_SIMPLE EIGEN_TIMESPAN EIGEN_TIMESPAN_GRAINSIZE EIGEN_STATIC)
-list(APPEND EIGEN_MODES EIGEN_TIMESPAN_GRAINSIZE)
+
+list(APPEND EIGEN_MODESEIGEN_STEALING EIGEN_SHARING EIGEN_STEALING_GRAINSIZE EIGEN_SHARING_STEALING)
 
 if ($ENV{USE_LB4OMP})
   set(OPENMP_STANDALONE_BUILD TRUE)
@@ -147,8 +136,10 @@ function(add_target target exec mode)
       target_link_libraries(${target} HPX::hpx)
     elseif (mode MATCHES "^TASKFLOW")
       target_compile_definitions(${target} PRIVATE TASKFLOW_MODE=${mode})
-      target_link_libraries(${target} Taskflow)
-      target_link_libraries(${target} ${JEMALLOC_LIBRARIES})
+
+      get_target_property(MY_KEK Taskflow::Taskflow INTERFACE_INCLUDE_DIRECTORIES)
+      message(STATUS "Propagating taskflow: ${MY_KEK} to target ${target}")
+      target_link_libraries(${target} Taskflow::Taskflow ${JEMALLOC_LIBRARIES})
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
       if ($ENV{USE_LB4OMP})
