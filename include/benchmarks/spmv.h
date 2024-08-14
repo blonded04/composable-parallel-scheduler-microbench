@@ -163,7 +163,6 @@ inline thread_local std::default_random_engine RandomGenerator{
 template <typename T, SparseKind Kind>
 SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
   assert(0 <= density && density <= 1.0);
-  auto start = std::chrono::high_resolution_clock::now();
 
   SparseMatrixCSR<T> out;
   out.Dimensions.Rows = n;
@@ -237,12 +236,6 @@ SparseMatrixCSR<T> GenSparseMatrix(size_t n, size_t m, double density) {
     out.RowIndex.push_back(out.ColumnIndex.size());
   }
 
-  std::cout << "Generated sparse matrix " << n << "x" << m << " with "
-            << out.Values.size() << " elements in of kind " << int(Kind)
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::high_resolution_clock::now() - start)
-                   .count()
-            << "ms\n";
   return out;
 }
 
