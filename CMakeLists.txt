@@ -101,7 +101,7 @@ list(APPEND OMP_MODES OMP_STATIC
 # list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY)
 
-list(APPEND EIGEN_MODESEIGEN_STEALING EIGEN_SHARING EIGEN_STEALING_GRAINSIZE EIGEN_SHARING_STEALING)
+list(APPEND EIGEN_MODES EIGEN_STEALING EIGEN_SHARING EIGEN_STEALING_GRAINSIZE EIGEN_SHARING_STEALING)
 
 if ($ENV{USE_LB4OMP})
   set(OPENMP_STANDALONE_BUILD TRUE)
@@ -118,11 +118,10 @@ else()
   find_package(OpenMP REQUIRED)
 endif()
 
-# list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES} ${PROACTIVE_MODES})
-# list(APPEND MODES ${OMP_MODES} ${EIGEN_MODES})
 list(APPEND MODES ${EIGEN_MODES} ${TBB_MODES} ${OMP_MODES} ${TASKFLOW_MODES})
-# list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES})
 
+add_library(llvm_omp SHARED IMPORTED)
+set_target_properties(llvm_omp PROPERTIES IMPORTED_LOCATION /usr/local/x86_64-linux-gnu/libomp.so)
 
 function(add_target target exec mode)
     add_executable(${target} ${exec})
@@ -153,7 +152,7 @@ function(add_target target exec mode)
         target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
       else()
         target_link_libraries(${target} /usr/local/lib/libomp.so) # explicitely link to clang openmp
-      # target_link_libraries(${target} OpenMP::OpenMP_CXX)
+        # target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
     elseif (mode MATCHES "^TBB")
       target_compile_definitions(${target} PRIVATE TBB_MODE=${mode})

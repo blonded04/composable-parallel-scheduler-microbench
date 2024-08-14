@@ -309,7 +309,7 @@ void ParallelFor(size_t from, size_t to, F&& func, size_t grainsize) {
   TaskNode rootNode;
   IntrusivePtrAddRef(&rootNode); // avoid deletion
   SplitData splitData{
-    .Threads = {0, static_cast<size_t>(Eigen::internal::GetNumThreads())},
+    .Threads = {0, static_cast<size_t>(GetNumThreads())},
     .GrainSize = grainsize,
   };
   if (detail::ThreadLocalTaskStack().IsEmpty()) {
