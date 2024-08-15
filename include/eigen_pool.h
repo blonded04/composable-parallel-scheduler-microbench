@@ -8,15 +8,10 @@
 #include "eigen/nonblocking_thread_pool.h"
 #include "tracing.h"
 
-#if EIGEN_MODE == EIGEN_RAPID
-inline auto EigenPool =
-    Eigen::ThreadPool(GetNumThreads() - 1); // 1 for main thread
-#else
 inline Eigen::ThreadPool& EigenPool() {
   static auto pool = Eigen::ThreadPool(GetNumThreads(), true, true); 
   return pool;
 }
-#endif
 
 class EigenPoolWrapper {
 public:

@@ -13,16 +13,6 @@
 #include <cstdio>
 #include <numeric>
 
-#if TBB_MODE == TBB_RAPID
-#include "rapid_start.h"
-inline Harness::RapidStart RapidGroup;
-#endif
-
-#if EIGEN_MODE == EIGEN_RAPID
-#include "rapid_start.h"
-inline Harness::RapidStart<EigenPoolWrapper> RapidGroup;
-#endif
-
 #ifdef TBB_MODE
 #include "tbb_pinner.h"
 #endif
@@ -36,36 +26,6 @@ struct InitOnce {
   template <typename F> InitOnce(F &&f) { f(); }
 };
 } // namespace
-
-#ifdef EIGEN_MODE
-// TODO: move to eigen header
-template <typename F>
-inline void EigenParallelFor(size_t from, size_t to, F &&func) {
-#if EIGEN_MODE == EIGEN_SIMPLE
-  EigenPartitioner::ParallelForSimple<EigenPoolWrapper>(from, to,
-                                                        std::forward<F>(func));
-#elif EIGEN_MODE == EIGEN_TIMESPAN
-  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper,
-                                        EigenPartitioner::GrainSize::DEFAULT>(
-      from, to, std::forward<F>(func));
-#elif EIGEN_MODE == EIGEN_TIMESPAN_GRAINSIZE
-  EigenPartitioner::ParallelForTimespan<EigenPoolWrapper,
-                                        EigenPartitioner::GrainSize::AUTO>(
-      from, to, std::forward<F>(func));
-#elif EIGEN_MODE == EIGEN_STATIC
-  EigenPartitioner::ParallelForStatic<EigenPoolWrapper>(from, to,
-                                                        std::forward<F>(func));
-#elif EIGEN_MODE == EIGEN_RAPID
-  RapidGroup.parallel_ranges(from, to, [&func](auto from, auto to, auto part) {
-    for (size_t i = from; i != to; ++i) {
-      func(i);
-    }
-  });
-#else
-  static_assert(false, "Wrong EIGEN_MODE mode");
-#endif
-}
-#endif
 
 constexpr size_t MaxPseudoIterator = 5000006;
 inline void GetHugePseudoIterator() {
@@ -170,7 +130,7 @@ void ParallelFor(size_t from, size_t to, Func &&func, size_t grainSize = 1) {
     func(i);
   }
 #elif defined(EIGEN_MODE)
-  EigenParallelFor(from, to, func);
+  EigenPartitioner::ParallelFor(from, to, func, grainSize);
 #else
   static_assert(false, "Wrong mode");
 #endif
@@ -185,7 +145,7 @@ inline void Warmup(size_t threadsNum) {
 }
 
 inline void InitParallel(size_t threadsNum) {
-#if TBB_MODE == TBB_RAPID || EIGEN_MODE == EIGEN_RAPID
+#if defined(TBB_MODE) && TBB_MODE == TBB_RAPID
   static InitOnce rapidInit{[threadsNum]() { RapidGroup.init(threadsNum); }};
 #endif
 #ifdef HPX_MODE

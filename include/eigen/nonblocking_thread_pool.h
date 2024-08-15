@@ -405,7 +405,9 @@ private:
 
     TaskPtr PopBack(bool force) {
       TaskPtr task = nullptr;
+#if defined(EIGEN_SHARING) or defined(EIGEN_SHARING_STEALING)
       mailbox.try_pop(task);
+#endif
       if (!task && force) {
         task = local_tasks.PopBack();
       }

@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.15)
-option(ENABLE_TESTS "Enable test" OFF)
+option(ENABLE_TESTS "Enable test" ON)
 
 # set(CMAKE_C_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang")
 # set(CMAKE_CXX_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang++")
@@ -40,7 +40,7 @@ message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 include(FetchContent)
-set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
+# set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
 
 if (ENABLE_TESTS)
     # gtest
@@ -72,14 +72,7 @@ FetchContent_Declare(
 option(TBB_TEST OFF)
 FetchContent_MakeAvailable(onetbb)
 
-FetchContent_Declare(
-  taskflow
-  GIT_REPOSITORY https://github.com/taskflow/taskflow.git
-  GIT_TAG master
-)
-option(TF_BUILD_TESTS OFF)
-option(TF_BUILD_EXAMPLES OFF)
-FetchContent_MakeAvailable(taskflow)
+find_package(Taskflow REQUIRED)
 
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps=obj")
 
@@ -107,12 +100,8 @@ list(APPEND OMP_MODES OMP_STATIC
 
 # list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY)
-if($ENV{ENABLE_RAPID})
-  list(APPEND TBB_MODES TBB_RAPID)
-  list(APPEND EIGEN_MODES EIGEN_RAPID)
-endif()
-# list(APPEND EIGEN_MODES EIGEN_SIMPLE EIGEN_TIMESPAN EIGEN_TIMESPAN_GRAINSIZE EIGEN_STATIC)
-list(APPEND EIGEN_MODES EIGEN_TIMESPAN_GRAINSIZE)
+
+list(APPEND EIGEN_MODES EIGEN_STEALING EIGEN_SHARING EIGEN_SHARING_STEALING)
 
 if ($ENV{USE_LB4OMP})
   set(OPENMP_STANDALONE_BUILD TRUE)
@@ -129,11 +118,10 @@ else()
   find_package(OpenMP REQUIRED)
 endif()
 
-# list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES} ${PROACTIVE_MODES})
-# list(APPEND MODES ${OMP_MODES} ${EIGEN_MODES})
 list(APPEND MODES ${EIGEN_MODES} ${TBB_MODES} ${OMP_MODES} ${TASKFLOW_MODES})
-# list(APPEND MODES ${OMP_MODES} ${TBB_MODES} ${EIGEN_MODES})
 
+add_library(llvm_omp SHARED IMPORTED)
+set_target_properties(llvm_omp PROPERTIES IMPORTED_LOCATION /usr/local/x86_64-linux-gnu/libomp.so)
 
 function(add_target target exec mode)
     add_executable(${target} ${exec})
@@ -147,8 +135,7 @@ function(add_target target exec mode)
       target_link_libraries(${target} HPX::hpx)
     elseif (mode MATCHES "^TASKFLOW")
       target_compile_definitions(${target} PRIVATE TASKFLOW_MODE=${mode})
-      target_link_libraries(${target} Taskflow)
-      target_link_libraries(${target} ${JEMALLOC_LIBRARIES})
+      target_link_libraries(${target} Taskflow::Taskflow ${JEMALLOC_LIBRARIES})
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})
       if ($ENV{USE_LB4OMP})
@@ -162,7 +149,7 @@ function(add_target target exec mode)
         target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
       else()
         target_link_libraries(${target} /usr/local/lib/libomp.so) # explicitely link to clang openmp
-      # target_link_libraries(${target} OpenMP::OpenMP_CXX)
+        # target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
     elseif (mode MATCHES "^TBB")
       target_compile_definitions(${target} PRIVATE TBB_MODE=${mode})
