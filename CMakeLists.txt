@@ -101,7 +101,7 @@ list(APPEND OMP_MODES OMP_STATIC
 # list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY TBB_CONST_AFFINITY)
 list(APPEND TBB_MODES TBB_SIMPLE TBB_AUTO TBB_AFFINITY)
 
-list(APPEND EIGEN_MODES EIGEN_STEALING EIGEN_SHARING EIGEN_STEALING_GRAINSIZE EIGEN_SHARING_STEALING)
+list(APPEND EIGEN_MODES EIGEN_STEALING EIGEN_SHARING EIGEN_SHARING_STEALING)
 
 if ($ENV{USE_LB4OMP})
   set(OPENMP_STANDALONE_BUILD TRUE)
@@ -135,9 +135,6 @@ function(add_target target exec mode)
       target_link_libraries(${target} HPX::hpx)
     elseif (mode MATCHES "^TASKFLOW")
       target_compile_definitions(${target} PRIVATE TASKFLOW_MODE=${mode})
-
-      get_target_property(MY_KEK Taskflow::Taskflow INTERFACE_INCLUDE_DIRECTORIES)
-      message(STATUS "Propagating taskflow: ${MY_KEK} to target ${target}")
       target_link_libraries(${target} Taskflow::Taskflow ${JEMALLOC_LIBRARIES})
     elseif (mode MATCHES "^OMP")
       target_compile_definitions(${target} PRIVATE OMP_MODE=${mode})

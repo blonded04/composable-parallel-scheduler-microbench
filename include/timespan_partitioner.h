@@ -154,9 +154,7 @@ struct Task {
           assert(otherThreads.From < threadSplit);
 
           static_assert(alignof(TaskNode) >= 8);
-          auto nodeRaw = aligned_alloc(alignof(TaskNode), sizeof(TaskNode));
-          auto newNode = new(nodeRaw) TaskNode{CurrentNode_};
-          IntrusivePtr newNodePtr{newNode};
+          IntrusivePtr newNodePtr{new TaskNode{CurrentNode_}};
 
           Sched_.run_on_thread(
               Task<SharingPolicy, BalancingPolicy, Func>{
