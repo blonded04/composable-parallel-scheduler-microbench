@@ -40,7 +40,7 @@ message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 include(FetchContent)
-# set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
+set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/cmake_deps)
 
 if (ENABLE_TESTS)
     # gtest
