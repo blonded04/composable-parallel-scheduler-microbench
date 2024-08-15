@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.15)
-option(ENABLE_TESTS "Enable test" ON)
+option(ENABLE_TESTS "Enable test" OFF)
 
 # set(CMAKE_C_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang")
 # set(CMAKE_CXX_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang++")
@@ -72,7 +72,14 @@ FetchContent_Declare(
 option(TBB_TEST OFF)
 FetchContent_MakeAvailable(onetbb)
 
-find_package(Taskflow REQUIRED)
+FetchContent_Declare(
+  taskflow
+  GIT_REPOSITORY https://github.com/taskflow/taskflow.git
+  GIT_TAG master
+)
+option(TF_BUILD_TESTS OFF)
+option(TF_BUILD_EXAMPLES OFF)
+FetchContent_MakeAvailable(taskflow)
 
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps=obj")
 
@@ -119,9 +126,6 @@ else()
 endif()
 
 list(APPEND MODES ${EIGEN_MODES} ${TBB_MODES} ${OMP_MODES} ${TASKFLOW_MODES})
-
-add_library(llvm_omp SHARED IMPORTED)
-set_target_properties(llvm_omp PROPERTIES IMPORTED_LOCATION /usr/local/x86_64-linux-gnu/libomp.so)
 
 function(add_target target exec mode)
     add_executable(${target} ${exec})
