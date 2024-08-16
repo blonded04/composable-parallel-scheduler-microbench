@@ -38,6 +38,17 @@ static void BM_ReduceBench(benchmark::State &state) {
 
 
 BENCHMARK(BM_ReduceBench)
+    ->Name("Reduce_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->ArgName("blocksize")
+    ->RangeMultiplier(4)
+    ->Range(1 << 12, 1 << 19)
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_ReduceBench)
     ->Name("Reduce_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
