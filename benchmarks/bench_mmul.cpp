@@ -23,6 +23,14 @@ static void BM_MatrixMul(benchmark::State &state) {
 
 #ifndef TASKFLOW_MODE
 BENCHMARK(BM_MatrixMul)
+    ->Name("MatrixMul_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_MatrixMul)
     ->Name("MatrixMul_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
