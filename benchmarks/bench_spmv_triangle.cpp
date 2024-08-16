@@ -40,6 +40,17 @@ static void BM_SpmvBenchTriangle(benchmark::State &state) {
 
 #ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchTriangle)
+    ->Name("SpmvTriangle_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->ArgName("width")
+    ->RangeMultiplier(2)
+    ->Range(*width.begin(), *std::prev(width.end()))
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_SpmvBenchTriangle)
     ->Name("SpmvTriangle_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
