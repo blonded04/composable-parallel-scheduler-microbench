@@ -40,6 +40,17 @@ static void BM_SpmvBenchBalanced(benchmark::State &state) {
 
 #ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchBalanced)
+    ->Name("SpmvBalanced_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->ArgName("width")
+    ->RangeMultiplier(2)
+    ->Range(*width.begin(), *std::prev(width.end()))
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_SpmvBenchBalanced)
     ->Name("SpmvBalanced_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
