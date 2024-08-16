@@ -40,6 +40,17 @@ static void BM_SpmvBenchHyperbolic(benchmark::State &state) {
 
 #ifndef TASKFLOW_MODE
 BENCHMARK(BM_SpmvBenchHyperbolic)
+    ->Name("SpmvHyperbolic_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->ArgName("width")
+    ->RangeMultiplier(2)
+    ->Range(*width.begin(), *std::prev(width.end()))
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_SpmvBenchHyperbolic)
     ->Name("SpmvHyperbolic_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
