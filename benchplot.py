@@ -46,10 +46,10 @@ TBB_MODES = [
     # "TBB_CONST_AFFINITY"
 ]
 EIGEN_MODES = [
-    "EIGEN_SIMPLE",
-    "EIGEN_STATIC",
-    "EIGEN_TIMESPAN",
-    "EIGEN_TIMESPAN_GRAINSIZE"
+    "EIGEN_STEALING",
+    "EIGEN_SHARING",
+    "EIGEN_SHARING_STEALING",
+    "EIGEN_SHARING_GRAINSIZE",
 ]
 
 COLORS = "ybgrcmk"
@@ -60,8 +60,10 @@ filtered_modes = set()
 # filtered_modes.update(EIGEN_MODES)
 
 # thesis (final):
-filtered_modes.update(["EIGEN_TIMESPAN_GRAINSIZE", "TASKFLOW_DYNAMIC", "TASKFLOW_STATIC"
+filtered_modes.update(["EIGEN_STEALING", "EIGEN_SHARING", "EIGEN_SHARING_STEALING",
+                       "TASKFLOW_DYNAMIC", "TASKFLOW_STATIC", "TASKFLOW_GUIDED",
                        "OMP_STATIC", "OMP_DYNAMIC_NONMONOTONIC", "OMP_GUIDED_NONMONOTONIC",
+                       "OMP_DYNAMIC_MONOTONIC", "OMP_GUIDED_MONOTONIC",
                        "TBB_AFFINITY", "TBB_SIMPLE", "TBB_AUTO"])
 
 filtered_benchmarks = set()
