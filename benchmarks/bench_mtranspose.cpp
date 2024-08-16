@@ -23,6 +23,14 @@ static void BM_MatrixTranspose(benchmark::State &state) {
 
 #ifndef TASKFLOW_MODE
 BENCHMARK(BM_MatrixTranspose)
+    ->Name("MatrixTranspose_Latency_" + GetParallelMode())
+    ->Setup(DoSetup)
+    ->UseRealTime()
+    ->MeasureProcessCPUTime()
+    ->Unit(benchmark::kMicrosecond)
+    ->MinTime(2);
+
+BENCHMARK(BM_MatrixTranspose)
     ->Name("MatrixTranspose_Throughput_" + GetParallelMode())
     ->Setup(DoSetup)
     ->UseRealTime()
