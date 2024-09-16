@@ -1,5 +1,4 @@
-# TLDR 
-## One command to run it all
+# TLDR: One command to run it all
 
 ```
 bash first-time-run.sh N
