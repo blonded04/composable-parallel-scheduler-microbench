@@ -125,7 +125,7 @@ else()
   find_package(OpenMP REQUIRED)
 endif()
 
-list(APPEND MODES ${EIGEN_MODES} ${TBB_MODES} ${OMP_MODES} ${TASKFLOW_MODES})
+list(APPEND MODES ${TASKFLOW_MODES})
 
 function(add_target target exec mode)
     add_executable(${target} ${exec})
