@@ -4,7 +4,9 @@
 bash first-time-run.sh N
 ```
 
-Where `N` is number of CPUs **on 1 NUMA node**. It will produce a folder microresults with raw `.json` files and plots in png and svg format.
+Where `N` is number of CPUs **on 1 NUMA node**. It will produce a folder microresults with raw `.json` files and plots in png and svg format. 
+
+You can also use `another-run.sh` instead of `first-time-run.sh` if you've already ran `first-time-run.sh`: it doesn't spend time to initialize `conda` environment.
 
 # Hybrid work distribution for parallel programs
 
