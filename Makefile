@@ -1,3 +1,5 @@
+.PHONY: clean
+
 UNAME_S := $(shell uname -s)
 
 NUMACTL_BIND :=
@@ -14,7 +16,7 @@ debug:
 	cmake -B cmake-build-debug -S . -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTS=ON && make -C cmake-build-debug -j$(shell nproc)
 
 clean:
-	rm -rf cmake-build-* benchmarks/cmake-build-* scheduling_dist/cmake-build-*
+	rm -rf cmake-build-* benchmarks/cmake-build-* scheduling_dist/cmake-build-* cmake_deps/*
 
 clean_bench:
 	rm -rf raw_results/*
@@ -71,14 +73,18 @@ tests: debug bench_tests lib_tests
 
 run_benchmarks: clean_bench bench_dir bench_spmv bench_reduce bench_scan bench_mmul bench_mtranspose
 
+lists_base: cp cmakelists-variations/base.txt CMakeLists.txt
+lists_tf: cp cmakelists-variations/taskflow.txt CMakeLists.txt
+lists_lb4omp: cp cmakelists-variations/lb4omp.txt CMakeLists.txt
+
 bench: USE_LB4OMP=0
-bench: clean release run_scheduling_dist bench_spin run_benchmarks
+bench: lists_base clean release run_scheduling_dist bench_spin run_benchmarks
 
 bench_tf: USE_LB4OMP=0
-bench_tf: clean release bench_spin bench_reduce bench_scan
+bench_tf: lists_tf clean release bench_spin bench_reduce bench_scan
 
 bench_lb4omp: USE_LB4OMP=1
-bench_lb4omp: clean release run_scheduling_dist bench_spin run_benchmarks
+bench_lb4omp: lists_lb4omp release_lb4omp run_scheduling_dist bench_spin run_benchmarks
 
 release_lb4omp: USE_LB4OMP=1
 release_lb4omp: clean release
