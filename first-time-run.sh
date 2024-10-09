@@ -3,32 +3,4 @@
 conda env create -f environment.yml
 conda activate benchmarks
 
-rm -r raw_results
-rm -r bench_results
-OMP_NUM_THREADS=$1 numactl --cpunodebind 0 make bench
-python3 benchplot.py
-cp -r raw_results raw_results_base
-cp -r bench_results bench_results_base
-
-rm -r raw_results
-rm -r bench_results
-OMP_NUM_THREADS=$1 numactl --cpunodebind 0 make bench_tf
-python3 benchplot.py
-cp -r raw_results raw_results_tf
-cp -r bench_results bench_results_tf
-
-rm -r raw_results
-rm -r bench_results
-OMP_NUM_THREADS=$1 numactl --cpunodebind 0 make bench_lb4omp
-python3 benchplot.py
-cp -r raw_results raw_results_lb4omp
-cp -r bench_results bench_results_lb4omp
-
-rm -r raw_results
-rm -r bench_results
-rm -r microresults
-mkdir microresults
-cp -r raw_results* microresults/
-cp -r bench_results* microresults/
-
-conda deactivate
+bash another-run.sh $1
