@@ -21,10 +21,8 @@ cp -r raw_results raw_results_lb4omp
 cp -r bench_results bench_results_lb4omp
 
 rm -rf raw_results
-rm -rf bench_results
 rm -rf microresults
 mkdir microresults
 cp -r raw_results* microresults/
-cp -r bench_results* microresults/
 
 conda deactivate
