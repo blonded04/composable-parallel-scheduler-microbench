@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+set -e
+conda init
 conda activate benchmarks
 
 rm -rf raw_results
