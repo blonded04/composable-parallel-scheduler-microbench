@@ -73,9 +73,12 @@ tests: debug bench_tests lib_tests
 
 run_benchmarks: clean_bench bench_dir bench_spmv bench_reduce bench_scan bench_mmul bench_mtranspose
 
-lists_base: cp cmakelists-variations/base.txt CMakeLists.txt
-lists_tf: cp cmakelists-variations/taskflow.txt CMakeLists.txt
-lists_lb4omp: cp cmakelists-variations/lb4omp.txt CMakeLists.txt
+lists_base: 
+	cp cmakelists-variations/base.txt CMakeLists.txt
+lists_tf: 
+	cp cmakelists-variations/taskflow.txt CMakeLists.txt
+lists_lb4omp: 
+	cp cmakelists-variations/lb4omp.txt CMakeLists.txt
 
 bench: USE_LB4OMP=0
 bench: lists_base clean release run_scheduling_dist bench_spin run_benchmarks
