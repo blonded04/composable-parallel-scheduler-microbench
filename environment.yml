@@ -2,6 +2,7 @@ name: benchmarks
 channels:
   - conda-forge
 dependencies:
+  - numactl
   - make
   - cmake>=3.18
   - compilers
