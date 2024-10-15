@@ -17,5 +17,6 @@ CONDA_PROFILE=$DIR/etc/profile.d/conda.sh
 [ x$DIR/bin/conda == x`which conda` ] || { # initialize
     . $CONDA_PROFILE
 }
+source activate base
 conda activate base
 [ x$DIR/bin/python == x`which python` ] || exit 1 # check
