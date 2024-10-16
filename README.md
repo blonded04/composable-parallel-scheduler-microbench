@@ -1,7 +1,8 @@
 # TLDR: One command to run it all
+Right after setting up conda environment, do the following:
 
 ```
-bash first-time-run.sh N
+bash another-run.sh N
 ```
 
 Where `N` is number of CPUs **on 1 NUMA node**. It will produce a folder microresults with raw `.json` files and plots in png and svg format. 
