@@ -1,7 +1,8 @@
-#!/usr/bin/bash
+#!/usr/bin/bash +x
 
 set -e
-conda init
+source activate base
+conda activate base
 conda activate benchmarks
 
 rm -rf cmake-build-release
