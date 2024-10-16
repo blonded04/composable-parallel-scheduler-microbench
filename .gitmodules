@@ -10,3 +10,6 @@
 [submodule "lb4omp"]
 	path = lb4omp
 	url = https://github.com/lejabque/LB4OMP.git
+[submodule "googlebenchmark"]
+	path = googlebenchmark
+	url = https://github.com/google/benchmark.git

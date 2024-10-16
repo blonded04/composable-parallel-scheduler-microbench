@@ -10,5 +10,7 @@ cd ../taskflow
 git checkout v3.8.0
 cd ../googletest
 git checkout release-1.12.0
+cd ../googlebenchmark
+git checkout v1.7.0
 cd ../
 

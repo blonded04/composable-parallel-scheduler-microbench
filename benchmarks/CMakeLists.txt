@@ -1,5 +1,7 @@
 # benchmark
 find_package(benchmark QUIET)
+add_subdirectory(../googlebenchmark)
+
 if(NOT benchmark_FOUND)
   FetchContent_Declare(googlebenchmark
           GIT_REPOSITORY https://github.com/google/benchmark.git
