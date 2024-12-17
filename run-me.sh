@@ -1,9 +1,6 @@
 #!/usr/bin/bash +x
 
 set -e
-source activate base
-conda activate base
-conda activate benchmarks
 
 rm -rf cmake-build-release
 rm -rf raw_results
@@ -31,5 +28,3 @@ rm -rf raw_results
 rm -rf microresults
 mkdir microresults
 cp -r raw_results* microresults/
-
-conda deactivate

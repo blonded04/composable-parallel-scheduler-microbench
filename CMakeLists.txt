@@ -8,7 +8,7 @@ set(CMAKE_CXX_COMPILER "g++")
 # set(CMAKE_C_COMPILER "clang")  # use when building lb4omp
 # set(CMAKE_CXX_COMPILER "clang++")  # use when building lb4omp
 
-project(composable-parallel-scheduler)
+project(composable-parallel-scheduler LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
@@ -152,7 +152,7 @@ function(add_target target exec mode)
         target_include_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
         target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
       else()
-        target_link_libraries(${target} /usr/local/lib/libomp.so) # explicitely link to clang openmp
+        target_link_libraries(${target} /usr/lib/llvm-14/lib/libomp.so) # explicitely link to clang openmp
         # target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
     elseif (mode MATCHES "^TBB")

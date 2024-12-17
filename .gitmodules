@@ -1,15 +1,15 @@
 [submodule "onetbb"]
 	path = onetbb
-	url = git@github.com:oneapi-src/oneTBB.git
+	url = https://github.com/oneapi-src/oneTBB.git
 [submodule "taskflow"]
 	path = taskflow
-	url = git@github.com:taskflow/taskflow.git
+	url = https://github.com/taskflow/taskflow.git
 [submodule "googletest"]
 	path = googletest
 	url = https://github.com/google/googletest.git
 [submodule "lb4omp"]
 	path = lb4omp
-	url = https://github.com/lejabque/LB4OMP.git
+	url = https://github.com/blonded04/LB4OMP.git
 [submodule "googlebenchmark"]
 	path = googlebenchmark
 	url = https://github.com/google/benchmark.git
