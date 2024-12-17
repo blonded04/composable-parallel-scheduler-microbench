@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.15)
 option(ENABLE_TESTS "Enable test" OFF)
+include(FetchContent)
 
 # set(CMAKE_C_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang")
 # set(CMAKE_CXX_COMPILER "/opt/user/BiSheng-compiler-2.5.0/bin/clang++")
@@ -44,9 +45,7 @@ option(TF_BUILD_TESTS OFF)
 option(TF_BUILD_EXAMPLES OFF)
 
 add_subdirectory(googletest)
-add_subdirectory(onetbb)
 add_subdirectory(taskflow)
-add_subdirectory(lb4omp)
 
 # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps=obj")
 
