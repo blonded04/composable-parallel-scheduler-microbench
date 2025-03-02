@@ -108,7 +108,7 @@ function(add_target target exec mode)
         target_include_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
         target_link_directories(${target} BEFORE PUBLIC ${FETCHCONTENT_BASE_DIR}/lb4omp-build/runtime/src)
       else()
-        target_link_libraries(${target} /usr/local/lib/libomp.so) # explicitely link to clang openmp
+        target_link_libraries(${target} /usr/lib/llvm-14/lib/libomp.so.5) # explicitely link to clang openmp
         # target_link_libraries(${target} OpenMP::OpenMP_CXX)
       endif()
     elseif (mode MATCHES "^TBB")
