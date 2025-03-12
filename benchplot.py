@@ -229,6 +229,62 @@ def plot_benchmark(type, benchmarks, title, verbose):
         return fig, table_row
 
 
+def plot_columnar_benchmark(benchmarks, title, verbose):
+    scaled_sums_by_name = {}
+    for _, bench_results in benchmarks.items():
+        max_value = min(bench_results.values())
+        for name, res in bench_results.items():
+            scaled_sums_by_name.setdefault(name, 0)
+            scaled_sums_by_name[name] += res / max_value
+    # average relative difference with the best solution
+    min_value = min(scaled_sums_by_name.values())
+    scaled_sums_by_name = {k: v / min_value for k, v in scaled_sums_by_name.items()}
+    table_row = {title: {name: f"{res:.2f} us (x{res :.2f})" for name, res in scaled_sums_by_name.items()}}
+
+    params_count = len(benchmarks)
+    fig, axis = plt.subplots(
+        params_count,
+        2 if verbose else 1,
+        figsize=(36 if verbose else 16, params_count * 6),
+        squeeze=False,
+    )
+    iter = 0
+    for params, bench_results in benchmarks.items():
+        bench_results = sorted(bench_results.items(), key=lambda x: x[1])
+        min_time = sorted(bench_results, key=lambda x: x[1])[0][1]
+        params_str = ""
+        # if params != "":
+        #     params_str = " with params " + params
+        axis[iter][0].barh(*zip(*bench_results), zorder=3)
+        axis[iter][0].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+        axis[iter][0].xaxis.set_minor_locator(AutoMinorLocator(5))
+        if verbose:
+            axis[iter][0].set_xlabel(
+                title + params_str + ", processed iterations (higher is better)",
+                fontsize=14,
+            )
+            axis[iter][1].set_xlabel(
+                title + params_str + ", normalized (lower is better)", fontsize=14
+            )
+            axis[iter][1].barh(
+                *zip(*[(name, min_time / time) for name, time in bench_results]), zorder=3
+            )
+            axis[iter][1].xaxis.set_major_locator(plt.MaxNLocator(nbins=12))
+            axis[iter][1].xaxis.set_minor_locator(AutoMinorLocator(5))
+        iter += 1
+    for axs in axis:
+        for ax in axs:
+            if verbose:
+                ax.tick_params(axis="both", which="major", labelsize=14)
+                fig.tight_layout()
+            else:
+                ax.tick_params(axis="both", which="major", labelsize=20)
+            ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
+            ax.grid(which='minor', color='#EEEEEE', linewidth=0.5)
+    return fig, table_row
+
+
+
 def parse_benchmarks(folder_name):
     benchmarks_by_type = [{}, {}]
     for bench_file in os.listdir(folder_name):
@@ -530,6 +586,8 @@ if __name__ == "__main__":
                 print("Processing", bench_type)
                 fig, _ = plot_benchmark("Throughput", bench, bench_type, verbose)
                 save_figure(current_res_path, fig, bench_type + "_throughput")
+                figC, _ = plot_columnar_benchmark(bench, bench_type, verbose)
+                save_figure(current_res_path, figC, bench_type + "_columnar")
                 plt.close()
     # table for latencies only
     table_res = generate_md_table(table)
