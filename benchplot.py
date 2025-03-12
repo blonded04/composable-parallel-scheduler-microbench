@@ -13,13 +13,6 @@ import os
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import AutoMinorLocator
 
-HPX_MODES = [
-    "HPX_STATIC",
-    "HPX_ASYNC"
-]
-PROACTIVE_MODES = [
-    "PROACTIVE_STATIC"
-]
 OMP_MODES = [
     "OMP_STATIC",
     "OMP_DYNAMIC_NONMONOTONIC",
@@ -43,7 +36,7 @@ TBB_MODES = [
     "TBB_AUTO",
     "TBB_SIMPLE",
     "TBB_AFFINITY",
-    # "TBB_CONST_AFFINITY"
+    "TBB_CONST_AFFINITY"
 ]
 EIGEN_MODES = [
     "EIGEN_STEALING",
