@@ -95,7 +95,7 @@ void MultiplyMatrix(const SPMV::DenseMatrix<T> &A,
 template <typename T>
 void __attribute__((noinline))
 TransposeMatrix(SPMV::DenseMatrix<T> &input, SPMV::DenseMatrix<T> &out,
-                size_t blocks = 16, size_t grainSize = 1) {
+                size_t blocks = 64, size_t grainSize = 1) {
   assert(input.Dimensions.Rows == out.Dimensions.Columns);
   assert(input.Dimensions.Columns == out.Dimensions.Rows);
   auto blocksRows = std::min(blocks, input.Dimensions.Rows);

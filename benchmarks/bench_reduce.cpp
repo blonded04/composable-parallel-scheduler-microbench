@@ -3,7 +3,7 @@
 
 #include "../include/parallel_for.h"
 
-static const size_t MAX_SIZE = (GetNumThreads() << 19) + (GetNumThreads() << 3) + 3;
+static const size_t MAX_SIZE = (GetNumThreads() << 19);
 // static constexpr size_t BLOCK_SIZE = 1 << 14;
 // static constexpr size_t blocks = (MAX_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
@@ -28,7 +28,7 @@ void __attribute__((noinline)) reduceImpl(std::vector<double> &data, size_t bloc
 static void BM_ReduceBench(benchmark::State &state) {
   static auto data = SPMV::GenVector<double>(MAX_SIZE);
   benchmark::DoNotOptimize(data);
-  auto blockSize = state.range(0) + GetNumThreads() + 3;
+  auto blockSize = state.range(0);
   auto blocks = (MAX_SIZE + blockSize - 1) / blockSize;
   for (auto _ : state) {
     reduceImpl(data, blocks, blockSize);
@@ -44,7 +44,7 @@ BENCHMARK(BM_ReduceBench)
     ->MeasureProcessCPUTime()
     ->ArgName("blocksize")
     ->RangeMultiplier(4)
-    ->Range(1 << 12, 1 << 19)
+    ->Range(1 << 12, 1 << 17)
     ->Unit(benchmark::kMicrosecond)
     ->MinTime(2);
 
@@ -55,7 +55,7 @@ BENCHMARK(BM_ReduceBench)
     ->MeasureProcessCPUTime()
     ->ArgName("blocksize")
     ->RangeMultiplier(4)
-    ->Range(1 << 12, 1 << 19)
+    ->Range(1 << 10, 1 << 17)
     ->Unit(benchmark::kMicrosecond)
     ->MinTime(2);
 
